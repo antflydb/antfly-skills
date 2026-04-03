@@ -56,7 +56,7 @@ The render prop receives: `value`, `onChange`, `onSubmit`, `onKeyDown`, `isSugge
 **Goal**: Build a completely custom interface without using the component library's UI.
 
 **Pattern**:
-1. Use `@antfly/sdk` directly for queries: `client.query(...)`, `client.agents.retrieval(...)`
+1. Use `@antfly/sdk` directly for queries: `client.query(...)`, `client.retrievalAgent(...)`
 2. Use `useAnswerStream` hook for streaming RAG without `<AnswerResults>`
 3. Use `useCitations` to parse citations from streamed answers
 4. Use `useSearchHistory` for recent searches
@@ -83,7 +83,7 @@ renderAnswer={(answer, isStreaming, hits) => (
 
 ## Sharp Edges
 
-- `<Antfly>` provider syncs state to URL params — if you have your own routing, use `onChange` to manage conflicts
+- `<Antfly>` does not automatically sync URL params — if you want URL state, implement it yourself via `onChange`
 - Multiple QueryBoxes on one page: each needs a unique `id`, and Results components specify which one they listen to via `searchBoxId`
 - `<Autosuggest>` debounces by default (300ms) — set `debounceMs={0}` for instant suggestions (higher load)
 - Component state resets on `table` prop change — switching tables clears results and filters

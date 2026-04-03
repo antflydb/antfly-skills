@@ -2,7 +2,7 @@
 
 ## Retrieval Agent
 
-`POST /api/v1/retrieval-agent`
+`POST /api/v1/agents/retrieval`
 
 The retrieval agent is Antfly's built-in RAG pipeline. It runs multi-strategy search, retrieves relevant documents, and optionally generates an LLM answer with streaming.
 
@@ -21,18 +21,17 @@ The agent can use multiple search strategies in a single request:
 
 ### Streaming (Server-Sent Events)
 
-The retrieval agent streams results via SSE. Event types:
+The retrieval agent streams results via SSE. Common event types:
 
 | Event | Payload | When |
 |-------|---------|------|
-| `step_started` | Step name | Pipeline step begins |
-| `step_progress` | Progress data | Progress within a step |
-| `step_completed` | Step result | Step finishes |
+| `classification` | Classification object | Query classification / routing |
 | `reasoning` | Text chunk | Agent's reasoning process (streamed incrementally) |
 | `hit` | Document hit | Individual retrieved document |
-| `generation` | Text chunk | Generated answer text (streamed incrementally) |
-| `followup` | Question string | Suggested follow-up question |
+| `generation` / `answer` | Text chunk | Generated answer text (streamed incrementally) |
+| `followup` / `followup_question` | Question string | Suggested follow-up question |
 | `confidence` | Score data | Answer confidence score |
+| `eval` | Eval result | Optional evaluation output |
 | `done` | — | Pipeline complete |
 | `error` | Error message | Something went wrong |
 
@@ -68,23 +67,19 @@ The agent auto-generates suggested follow-up questions based on the query and re
 
 ### Evaluation
 
-`POST /api/v1/eval` — evaluate retrieval quality.
-
-Metrics: `recall`, `precision`, `ndcg`, `mrr`
-
-Provide ground truth (`relevant_ids`) and retrieved results (`retrieved_ids`) to measure search quality.
+Inline evaluation is available via the retrieval agent `steps.eval` config and streams `eval` events.
 
 ## SDK Usage
 
 **TypeScript**:
 ```
-client.agents.retrieval(request, {
-  onClassification, onReasoning, onHit, onGeneration, onFollowup, onComplete
+client.retrievalAgent(request, {
+  onClassification, onReasoning, onHit, onAnswer, onFollowUpQuestion, onDone
 })
 ```
 Returns an `AbortController` for cancellation.
 
-**React**: `<AnswerResults>` and `<RAGResults>` components handle streaming automatically. `useAnswerStream` hook for custom implementations.
+**React**: `<AnswerResults>` handles streaming automatically. `useAnswerStream` hook is available for custom implementations.
 
 ## Sharp Edges
 
@@ -93,3 +88,4 @@ Returns an `AbortController` for cancellation.
 3. **Citations use `resource_id`** — this may differ from the document `_id` in some cases. Parse carefully.
 4. **Follow-up questions are best-effort** — quality depends on the LLM model. Smaller models produce weaker follow-ups.
 5. **Abort/cancel** — always provide a way to cancel streaming requests (AbortController in TS, context cancellation in Go).
+6. **Current React package surface** — use `AnswerResults` for built-in answer UI; `RAGResults` is not part of the current exported component API.

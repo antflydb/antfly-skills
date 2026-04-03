@@ -30,8 +30,8 @@ Authorization: Basic base64(username:password)
 
 **TypeScript** (`@antfly/sdk` on npm):
 - `new AntflyClient({ baseUrl, auth })` — auth accepts `{ username, password }`, `{ type: "apiKey", keyId, keySecret }`, or `{ type: "bearer", token }`
-- Methods: `client.tables.*`, `client.indexes.*`, `client.users.*`, `client.query()`, `client.agents.retrieval()`
-- Streaming support for RAG via callbacks (`onHit`, `onGeneration`, `onReasoning`, etc.)
+- Methods: `client.tables.*`, `client.indexes.*`, `client.users.*`, `client.query()`, `client.retrievalAgent()`
+- Streaming support for the retrieval agent via callbacks (`onHit`, `onAnswer`, `onReasoning`, `onFollowUpQuestion`, etc.)
 - Multi-query via `client.multiquery()`
 
 **Go** (`github.com/antflydb/antfly/pkg/client`):

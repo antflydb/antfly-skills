@@ -1,0 +1,4 @@
+interface:
+  display_name: "Antfly"
+  short_description: "Build and operate apps with Antfly guidance"
+  default_prompt: "Use $antfly to implement this with the right Antfly backend, frontend, or ops workflow."

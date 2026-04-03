@@ -6,7 +6,7 @@
 npm install @antfly/components @antfly/sdk react react-dom
 ```
 
-Import stylesheet (required): `import '@antfly/components/dist/components.css'`
+Import stylesheet (required): `import '@antfly/components/styles'`
 
 ## Component Reference
 
@@ -92,30 +92,11 @@ Composable: can nest `<AutosuggestResults>` and `<AutosuggestFacets>` inside for
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
-| `id` | string | yes | Unique ID |
-| `render` | function | yes | `(filters, removeFilter) => ReactNode` |
-
-### `<RAGResults>` — RAG Answer with Sources
-
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `id` | string | yes | Unique ID |
-| `searchBoxId` | string | yes | ID of QueryBox (must use `mode="submit"`) |
-| `summarizer` | object | yes | `{ provider, model, api_key? }` |
-| `systemPrompt` | string | no | Custom LLM instructions |
-| `fields` | string[] | no | Fields to search |
-| `semanticIndexes` | string[] | no | Vector indexes |
-| `showHits` | boolean | no | Show source documents (default: false) |
-| `renderSummary` | function | no | `(summary, isStreaming, hits) => ReactNode` |
-| `table` | string | no | Table override |
-| `filterQuery` | object | no | Additional filter |
-| `children` | ReactNode | no | Nest `<AnswerFeedback>` inside |
-
-Use with `replaceCitations(text, fn)` from `@antfly/components` to render citation links.
+| `items` | function | no | `(filters, removeFilter) => ReactNode` |
 
 ### `<AnswerResults>` — Answer Agent Q&A
 
-Full-featured answer agent with reasoning, follow-ups, and confidence.
+Full-featured answer agent with reasoning, follow-ups, confidence, citations, and optional eval output.
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
@@ -130,19 +111,30 @@ Full-featured answer agent with reasoning, follow-ups, and confidence.
 | `showClassification` | boolean | no | Show query classification |
 | `showConfidence` | boolean | no | Show answer confidence |
 | `showHits` | boolean | no | Show source documents |
+| `renderLoading` | function | no | Custom loading renderer |
+| `renderEmpty` | function | no | Custom empty renderer |
 | `renderAnswer` | function | no | `(answer, isStreaming, hits) => ReactNode` |
+| `renderClassification` | function | no | `(classification) => ReactNode` |
 | `renderFollowUpQuestions` | function | no | `(questions) => ReactNode` |
 | `renderReasoning` | function | no | `(reasoning) => ReactNode` |
+| `renderConfidence` | function | no | `(confidence) => ReactNode` |
+| `renderHits` | function | no | `(hits) => ReactNode` |
+| `renderEvalResult` | function | no | `(evalResult) => ReactNode` |
 | `onStreamStart` | function | no | Callback when streaming begins |
 | `onStreamEnd` | function | no | Callback when streaming ends |
 | `onError` | function | no | Error callback |
 | `agentKnowledge` | string | no | Additional context for the agent |
 | `eval` | object | no | Evaluation config |
+| `generationContext` | string | no | Additional generation context |
+| `limit` | number | no | Retrieval limit (default: 10) |
+| `followUpCount` | number | no | Number of follow-up questions |
 | `children` | ReactNode | no | Nest `<AnswerFeedback>` inside |
+
+Use with `replaceCitations(text, fn)` or `useCitations()` from `@antfly/components` to render citation links.
 
 ### `<AnswerFeedback>` — User Ratings
 
-Nest inside `<RAGResults>` or `<AnswerResults>`.
+Nest inside `<AnswerResults>`.
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
@@ -150,9 +142,9 @@ Nest inside `<RAGResults>` or `<AnswerResults>`.
 | `renderRating` | function | yes | Use built-in: `renderThumbsUpDown`, `renderStars`, `renderNumeric` |
 | `onFeedback` | function | yes | `({ feedback, result, query }) => void` |
 
-## Generator/Summarizer Providers
+## Generator Providers
 
-Used in `<RAGResults>` (summarizer) and `<AnswerResults>` (generator):
+Used in `<AnswerResults>`:
 
 | Provider | Value | Example models |
 |----------|-------|---------------|
@@ -164,11 +156,11 @@ Used in `<RAGResults>` (summarizer) and `<AnswerResults>` (generator):
 
 ## Sharp Edges
 
-1. **Must import CSS**: `import '@antfly/components/dist/components.css'` — components render unstyled without it
-2. **`searchBoxId` must match** the `id` on the QueryBox that drives the Results/RAGResults/AnswerResults
+1. **Must import CSS**: `import '@antfly/components/styles'` — components render unstyled without it
+2. **`searchBoxId` must match** the `id` on the QueryBox that drives the Results/AnswerResults
 3. **`semanticIndexes` required** for vector search — same rule as the API
-4. **`mode="submit"`** for Q&A: RAGResults and AnswerResults need submit mode on QueryBox, not live mode
+4. **`mode="submit"`** for Q&A: `AnswerResults` should be driven by a submit-mode QueryBox, not live mode
 5. **Facet fields must be `keyword` type** — `text` fields produce broken facet values
-6. **Provider config differs**: `summarizer` for RAGResults, `generator` for AnswerResults — different prop names, same shape
-7. **URL state sync**: Antfly provider syncs search state to URL query params via `onChange` — be aware this affects browser history
+6. **`ActiveFilters` uses `items`**, not `render`, for custom rendering
+7. **No built-in URL syncing** in the provider — if you want URL state, wire it yourself using `onChange`
 8. **Peer dependencies**: `@antfly/sdk`, `react`, `react-dom` must be installed separately

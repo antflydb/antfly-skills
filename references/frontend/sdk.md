@@ -56,13 +56,13 @@ Backwards compatible: `client.setAuth(username, password)` also works.
 
 ### Streaming (Retrieval Agent)
 ```typescript
-const controller = await client.agents.retrieval(request, {
+const controller = await client.retrievalAgent(request, {
   onClassification: (data) => { },
   onReasoning: (chunk) => { },
   onHit: (hit) => { },
-  onGeneration: (chunk) => { },
-  onFollowup: (question) => { },
-  onComplete: () => { }
+  onAnswer: (chunk) => { },
+  onFollowUpQuestion: (question) => { },
+  onDone: () => { }
 })
 
 // Cancel:

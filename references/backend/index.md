@@ -33,6 +33,40 @@ Table
 
 **RAG flow**: Retrieval agent runs multi-strategy search (semantic, bm25, graph, hybrid) → retrieves docs → LLM generates answer with citations → streams via SSE.
 
+## When To Read Which Backend Module
+
+- Need auth, client setup, or API URL:
+  Read `connect.md`
+- Need to create or change a table:
+  Read `schema.md` and `indexes.md`
+- Need insert/upsert/import/sync semantics:
+  Read `data.md`
+- Need query construction or relevance behavior:
+  Read `search.md`
+- Need answer generation / streaming:
+  Read `rag.md`
+- Need external data sync:
+  Read `integrations.md`
+- Need user permissions or API keys:
+  Read `auth.md`
+- Need a recipe for a common use case:
+  Read `patterns.md`
+
+## Feature Selection Guide
+
+- Exact keyword matching, filters, sorting:
+  Use full-text + `keyword` / `numeric` fields
+- Semantic similarity:
+  Use `semantic_search` with explicit `indexes`
+- Keyword + semantic ranking:
+  Use hybrid search
+- Citation-backed answers:
+  Use the retrieval agent / `AnswerResults`
+- Relationship traversal:
+  Use graph indexes and graph queries
+- Tenant isolation in one table:
+  Use key prefixes and `filter_prefix`
+
 ## API
 
 REST API at `{{ANTFLY_API_URL}}/api/v1`. OpenAPI spec available. Auth via API keys, OAuth, Bearer tokens, or Basic auth.
@@ -43,7 +77,7 @@ Key endpoint groups:
 - `/{table}/linear-merge` — bulk sorted upsert (best for imports)
 - `/{table}/keys/{key}` — lookup by key
 - `/query` — search (full-text, semantic, hybrid, multi-query via NDJSON)
-- `/retrieval-agent` — RAG with streaming (SSE)
+- `/agents/retrieval` — retrieval / answer agent with streaming (SSE)
 - `/transaction` — multi-table atomic batch
 - `/users` — user management, API keys, permissions
 
@@ -68,8 +102,7 @@ Pre-built UI components that connect to an Antfly backend:
 | `<Facet>` | Faceted navigation on keyword fields |
 | `<Results>` | Search results display with pagination |
 | `<ActiveFilters>` | Shows/removes active facet selections |
-| `<RAGResults>` | RAG answer with streaming, citation support |
-| `<AnswerResults>` | Answer agent Q&A with reasoning, follow-ups, confidence |
+| `<AnswerResults>` | Streaming answer agent UI with reasoning, follow-ups, confidence, citations |
 | `<AnswerFeedback>` | Thumbs up/down or star ratings on answers |
 
 Hooks: `useAnswerStream`, `useSearchHistory`, `useCitations`
@@ -96,3 +129,4 @@ For deeper context on each area, read:
 5. Facets only work on `keyword` typed fields, not `text` fields
 6. API key secret is only returned once at creation time — must be stored immediately
 7. Handlebars templates in embedding indexes must reference fields that actually exist in the document
+8. `@antfly/components` currently exports `AnswerResults`, not `RAGResults`

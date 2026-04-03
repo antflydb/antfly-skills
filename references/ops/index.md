@@ -7,6 +7,32 @@ Antfly has two deployment modes:
 - **Swarm mode** — single-process, runs metadata + storage + Termite together. For development and small deployments.
 - **Distributed mode** — separate metadata nodes and storage nodes, each running independently. For production. Managed via the Kubernetes operator.
 
+## When To Read Which Ops Module
+
+- Local single-node setup or CLI flags:
+  Read `swarm.md`
+- Production cluster deployment:
+  Read `kubernetes.md`
+- Docker or compose-based setup:
+  Read `docker.md`
+- S3/R2 or local persistence:
+  Read `storage.md`
+- Secrets / credentials:
+  Read `secrets.md`
+- Model serving and inference:
+  Read `termite.md`
+- Health, metrics, logs:
+  Read `monitoring.md`
+- Exact config keys and env vars:
+  Read `config.md`
+
+## Environment Defaults
+
+- If the task sounds like local development, demos, or quickstart:
+  Assume `antfly swarm`
+- If the task sounds like HA, autoscaling, or production:
+  Assume Kubernetes operator and distributed mode
+
 ## Swarm Mode (Dev / Single-Node)
 
 ```bash

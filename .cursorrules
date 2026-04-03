@@ -15,7 +15,7 @@ Antfly is a distributed database and search engine with hybrid search (BM25 + ve
 
 ## API
 
-REST at `{{ANTFLY_API_URL}}/api/v1`. Key endpoints: `/tables`, `/{table}/batch`, `/{table}/linear-merge`, `/query`, `/retrieval-agent`, `/transaction`, `/users`.
+REST at `{{ANTFLY_API_URL}}/api/v1`. Key endpoints: `/tables`, `/{table}/batch`, `/{table}/linear-merge`, `/query`, `/agents/retrieval`, `/transaction`, `/users`.
 
 Auth: `Authorization: ApiKey base64(keyID:keySecret)` | Bearer | Basic | OAuth
 
@@ -25,9 +25,9 @@ TypeScript: `@antfly/sdk` | Go: `github.com/antflydb/antfly/pkg/client` | Python
 
 ## React Components (`@antfly/components`)
 
-Import CSS: `import '@antfly/components/dist/components.css'`
+Import CSS: `import '@antfly/components/styles'`
 
-`<Antfly>` (provider, required) → `<QueryBox>` (search input, live or submit mode) → `<Autosuggest>` → `<Facet>` (keyword field aggregations) → `<Results>` (search results) → `<RAGResults>` / `<AnswerResults>` (RAG with streaming) → `<AnswerFeedback>` (ratings)
+`<Antfly>` (provider, required) → `<QueryBox>` (search input, live or submit mode) → `<Autosuggest>` → `<Facet>` (keyword field aggregations) → `<Results>` (search results) → `<AnswerResults>` (streaming answer UI) → `<AnswerFeedback>` (ratings)
 
 Hooks: `useAnswerStream`, `useSearchHistory`, `useCitations`
 
@@ -52,15 +52,15 @@ Generator/summarizer providers: `ollama`, `openai`, `anthropic`, `bedrock`, `goo
 5. Facets require `keyword` typed fields, not `text`
 6. API key secret only returned once at creation
 7. `<Antfly>` provider required — all React components must be descendants
-8. Import `@antfly/components/dist/components.css` or components render unstyled
+8. Import `@antfly/components/styles` or components render unstyled
 9. `searchBoxId` on Results must match the `id` on the QueryBox driving it
 10. Metadata nodes must be odd-numbered (3 or 5) — even risks split-brain
 11. Linear merge requires sorted keys + cursor pagination + final orphan cleanup
 12. Bleve query syntax (not Elasticsearch) — use Bleve docs as reference
-13. Pagination is cursor-based (`search_after`/`search_before`), not page numbers
+13. Full-text pagination uses `offset`; semantic search does not support offset pagination
 14. Handlebars templates in embedding indexes must reference fields that exist in the document
 15. Health endpoint on port 4200, not API port 8080
 
 ## Detailed Reference
 
-For deeper context, read files in `backend/`, `frontend/`, and `ops/` directories. Each has an `index.md` overview and topic-specific modules.
+For deeper context, read files in `references/backend/`, `references/frontend/`, and `references/ops/`. Each has an `index.md` overview and topic-specific modules.

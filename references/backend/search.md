@@ -4,7 +4,7 @@
 
 `POST /api/v1/query`
 
-A single query request can combine multiple search strategies. The response includes `hits` (scored results), `total`, and optional `facets`.
+A single query request can combine multiple search strategies. The response includes `hits`, optional `aggregations`, optional `graph_results`, and optional `join_result`.
 
 ## Full-Text Search (BM25)
 
@@ -94,11 +94,23 @@ RRF combines rankings from both result sets. Documents appearing in both get a b
 
 Filters use the same Bleve query syntax as `full_text_search`.
 
-## Facets
+## Aggregations / Facets
 
-Aggregation buckets on fields. Returns counts per value.
+Facet-style counts are implemented through `aggregations`.
 
-Facets are configured on the table or query. Results come back as `aggregation_buckets` with `key` and `doc_count`.
+Example:
+```json
+{
+  "aggregations": {
+    "categories": {
+      "type": "terms",
+      "field": "category"
+    }
+  }
+}
+```
+
+Results come back under `aggregations.<name>.buckets` with `key` and `doc_count`.
 
 Facets require `keyword` typed fields — `text` fields are tokenized and won't produce meaningful facet values.
 
@@ -121,16 +133,16 @@ Reranking is applied after initial retrieval and RRF merge.
 
 ## Pagination
 
-Cursor-based using sort values from hits:
+Current query pagination is offset-based for full-text queries:
 
-- `search_after` — forward pagination. Pass `_sort` values from the last hit.
-- `search_before` — backward pagination. Pass `_sort` values from the first hit.
+- `offset` — number of results to skip
+- `limit` — max results to return
 
-**Not page-number based** — no offset/skip. This is intentional for performance at scale.
+`offset` is not supported for `semantic_search`.
 
 ## Sorting
 
-`order_by` — array of sort fields:
+`order_by` — array of sort fields with direction:
 ```json
 {
   "order_by": [
@@ -157,12 +169,21 @@ Reduces response size. Supports nested paths.
 
 Multiple queries in a single request, one JSON object per line. Results returned as array.
 
+## Additional Query Features
+
+- `aggregations` — metrics and bucketing aggregations
+- `tree_search` — hierarchical / tree traversal search
+- `graph_searches` — declarative graph traversals
+- `join` — join query results with another table
+- `foreign_sources` — federated query-time access to external sources used with joins
+
 ## Sharp Edges
 
 1. **`semantic_search` without `indexes` returns nothing** — no error, just zero results. Always specify the index name.
 2. **Facets require `keyword` fields** — `text` fields are tokenized and produce meaningless facet values.
 3. **`filter_query` doesn't affect scoring** — it's a post-filter. Use `full_text_search` if relevance should be affected.
-4. **Pagination is cursor-based** — no page numbers. Must pass `_sort` values from previous results.
+4. **`offset` is only for full-text queries** — semantic search does not support offset pagination.
 5. **Bleve query string syntax** differs from Elasticsearch — use Bleve docs as reference, not ES.
 6. **Multi-query uses NDJSON** (newline-delimited JSON), not a JSON array.
-7. **`limit`** defaults vary — always specify explicitly for predictable results.
+7. **`order_by` is an array** of `{ field, desc }` objects, not a map.
+8. **`limit`** defaults vary — always specify explicitly for predictable results.

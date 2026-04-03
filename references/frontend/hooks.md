@@ -2,7 +2,7 @@
 
 ## useAnswerStream
 
-Low-level hook for building custom answer/RAG UIs outside the component tree.
+Low-level hook for building custom answer-agent UIs outside the component tree.
 
 ```typescript
 import { useAnswerStream } from '@antfly/components'
@@ -28,11 +28,10 @@ startStream({
   url: '{{ANTFLY_API_URL}}/api/v1',
   request: {
     query: 'how does raft work',
-    tables: ['docs'],
+    generator: { provider: 'ollama', model: 'qwen2.5:7b' },
+    queries: [{ table: 'docs', semantic_search: 'how does raft work', indexes: ['emb'] }],
     steps: {
-      generation: {
-        generator: { provider: 'ollama', model: 'qwen2.5:7b' }
-      }
+      generation: { enabled: true }
     }
   },
   headers: { Authorization: 'ApiKey ...' }

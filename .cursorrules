@@ -1,0 +1,66 @@
+# Antfly — AI Context for Cursor
+
+Antfly is a distributed database and search engine with hybrid search (BM25 + vector + graph), multimodal support, and built-in RAG.
+
+## Core Concepts
+
+- **Tables** hold JSON documents with optional JSON Schema (extended with `x-antfly-*` annotations)
+- **Indexes** attach to tables: `full_text` (BM25), `embeddings` (vector), `graph` (traversal)
+- **JSON Schema → full-text mappings**: `x-antfly-types` (array!) controls indexing: `text`, `keyword`, `numeric`, `boolean`, `datetime`, `geopoint`, `embedding`, `html`, `blob`, `link`, `search_as_you_type`
+- **Embeddings indexes** use handlebars templates (`{{title}} {{content}}`) + embedding model. Multimodal via `{{media url=field}}`. Chunking configurable.
+- **Graph indexes** define edges on fields for traversal queries
+- **Enrichments** run async on write: auto-generate embeddings, summaries, graph edges
+- **Queries** combine `full_text_search` + `semantic_search` + filters in one request, merged via RRF
+- **RAG**: retrieval agent with multi-strategy search + LLM answer generation + SSE streaming
+
+## API
+
+REST at `{{ANTFLY_API_URL}}/api/v1`. Key endpoints: `/tables`, `/{table}/batch`, `/{table}/linear-merge`, `/query`, `/retrieval-agent`, `/transaction`, `/users`.
+
+Auth: `Authorization: ApiKey base64(keyID:keySecret)` | Bearer | Basic | OAuth
+
+## SDKs
+
+TypeScript: `@antfly/sdk` | Go: `github.com/antflydb/antfly/pkg/client` | Python: `antfly` | Rust: `pgaf`
+
+## React Components (`@antfly/components`)
+
+Import CSS: `import '@antfly/components/dist/components.css'`
+
+`<Antfly>` (provider, required) → `<QueryBox>` (search input, live or submit mode) → `<Autosuggest>` → `<Facet>` (keyword field aggregations) → `<Results>` (search results) → `<RAGResults>` / `<AnswerResults>` (RAG with streaming) → `<AnswerFeedback>` (ratings)
+
+Hooks: `useAnswerStream`, `useSearchHistory`, `useCitations`
+
+Generator/summarizer providers: `ollama`, `openai`, `anthropic`, `bedrock`, `google`
+
+## Deployment
+
+- **Swarm mode**: `antfly swarm` — single-process dev mode (API on 8080, health on 4200)
+- **Distributed**: separate `antfly metadata` + `antfly store` nodes
+- **Kubernetes**: operator with CRDs (AntflyCluster, AntflyBackup, AntflyRestore), autoscaling, multi-cloud (EKS, GKE, generic)
+- **Docker**: `ghcr.io/antflydb/antfly:latest` (standard) or `:omni` (with Termite ML)
+- **Termite**: local ONNX inference for embeddings/chunking/reranking. Models: `antfly termite pull --variants i8 BAAI/bge-small-en-v1.5`
+- **S3 backend**: ~87% cost reduction, instant shard splits. Compatible: AWS S3, Cloudflare R2, MinIO.
+- **Secrets**: `${secret:key.name}` in config → resolved from keystore or env vars
+
+## Critical Sharp Edges
+
+1. `semantic_search` REQUIRES `indexes: ["index_name"]` — omitting silently returns nothing
+2. `x-antfly-types` is an ARRAY: `["text", "keyword"]` not `"text"`
+3. API key header: `ApiKey base64(keyID:keySecret)` — must include both ID and secret
+4. `sync_level: "aknn"` needed to query vector results right after writing
+5. Facets require `keyword` typed fields, not `text`
+6. API key secret only returned once at creation
+7. `<Antfly>` provider required — all React components must be descendants
+8. Import `@antfly/components/dist/components.css` or components render unstyled
+9. `searchBoxId` on Results must match the `id` on the QueryBox driving it
+10. Metadata nodes must be odd-numbered (3 or 5) — even risks split-brain
+11. Linear merge requires sorted keys + cursor pagination + final orphan cleanup
+12. Bleve query syntax (not Elasticsearch) — use Bleve docs as reference
+13. Pagination is cursor-based (`search_after`/`search_before`), not page numbers
+14. Handlebars templates in embedding indexes must reference fields that exist in the document
+15. Health endpoint on port 4200, not API port 8080
+
+## Detailed Reference
+
+For deeper context, read files in `backend/`, `frontend/`, and `ops/` directories. Each has an `index.md` overview and topic-specific modules.

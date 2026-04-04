@@ -67,9 +67,19 @@ Table
 - Tenant isolation in one table:
   Use key prefixes and `filter_prefix`
 
-## API
+## Agent Protocols (MCP + A2A)
 
-REST API at `{{ANTFLY_API_URL}}/api/v1`. OpenAPI spec available. Auth via API keys, OAuth, Bearer tokens, or Basic auth.
+Antfly has built-in MCP and A2A servers — AI agents can interact with the database directly from the IDE.
+
+- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1/` — 10 tools: create/drop tables, create/drop indexes, batch insert/delete, query (hybrid search), backup/restore. Read [mcp.md](mcp.md).
+- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — 2 skills: `retrieval` (RAG with streaming + multi-turn) and `query-builder` (natural language → Bleve query). Read [a2a.md](a2a.md).
+- **Agent card** at `{{ANTFLY_API_URL}}/.well-known/agent.json` — standard A2A discovery.
+
+Use MCP for database operations. Use A2A for intelligent search and reasoning.
+
+## REST API
+
+`{{ANTFLY_API_URL}}/api/v1`. OpenAPI spec available. Auth via API keys, OAuth, Bearer tokens, or Basic auth.
 
 Key endpoint groups:
 - `/tables` — CRUD tables, schema, indexes
@@ -110,6 +120,8 @@ Hooks: `useAnswerStream`, `useSearchHistory`, `useCitations`
 ## Skill Modules
 
 For deeper context on each area, read:
+- [mcp.md](mcp.md) — MCP server: 10 tools for direct agent interaction
+- [a2a.md](a2a.md) — A2A protocol: retrieval agent + query builder skills
 - [connect.md](connect.md) — auth, client setup, API URL
 - [schema.md](schema.md) — tables, JSON Schema, x-antfly-* extensions, field types
 - [indexes.md](indexes.md) — full-text, embeddings, graph indexes and enrichments

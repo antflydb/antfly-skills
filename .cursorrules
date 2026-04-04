@@ -13,9 +13,15 @@ Antfly is a distributed database and search engine with hybrid search (BM25 + ve
 - **Queries** combine `full_text_search` + `semantic_search` + filters in one request, merged via RRF
 - **RAG**: retrieval agent with multi-strategy search + LLM answer generation + SSE streaming
 
-## API
+## Agent Protocols
 
-REST at `{{ANTFLY_API_URL}}/api/v1`. Key endpoints: `/tables`, `/{table}/batch`, `/{table}/linear-merge`, `/query`, `/agents/retrieval`, `/transaction`, `/users`.
+- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1/` — 10 tools: create/drop tables, create/drop indexes, batch insert/delete, query, backup/restore
+- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — skills: `retrieval` (RAG + streaming), `query-builder` (NL → Bleve query)
+- Use MCP for database CRUD. Use A2A for search reasoning and answer generation.
+
+## REST API
+
+`{{ANTFLY_API_URL}}/api/v1`. Key endpoints: `/tables`, `/{table}/batch`, `/{table}/linear-merge`, `/query`, `/agents/retrieval`, `/transaction`, `/users`.
 
 Auth: `Authorization: ApiKey base64(keyID:keySecret)` | Bearer | Basic | OAuth
 
@@ -60,6 +66,8 @@ Generator/summarizer providers: `ollama`, `openai`, `anthropic`, `bedrock`, `goo
 13. Full-text pagination uses `offset`; semantic search does not support offset pagination
 14. Handlebars templates in embedding indexes must reference fields that exist in the document
 15. Health endpoint on port 4200, not API port 8080
+16. MCP server at `/mcp/v1/` — use for database operations from agents
+17. A2A protocol at `/a2a` with agent card at `/.well-known/agent.json`
 
 ## Detailed Reference
 

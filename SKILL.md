@@ -7,6 +7,17 @@ description: Use this skill when working with Antfly applications, APIs, schemas
 
 Use this skill for any task that builds on, debugs, integrates with, or operates Antfly.
 
+## Agent Protocols
+
+Antfly has built-in MCP and A2A servers. AI agents can interact with the database directly:
+
+- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1/` — create tables, manage indexes, insert data, run queries, backup/restore. See `references/backend/mcp.md`.
+- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — RAG with streaming (`retrieval` skill), natural language → query (`query-builder` skill). See `references/backend/a2a.md`.
+
+Use MCP for database CRUD. Use A2A for search reasoning and answer generation.
+
+## Reference Material
+
 Start with the smallest useful context:
 - Backend task:
   Read `references/backend/index.md`, then only the specific module needed
@@ -26,7 +37,9 @@ Before writing code, identify:
 
 ## Backend Routing
 
-Read:
+For direct agent interaction, prefer MCP tools (see `references/backend/mcp.md`).
+For RAG and intelligent search, use A2A (see `references/backend/a2a.md`).
+For SDK/API reference, read:
 - `references/backend/connect.md` for auth, clients, API URL
 - `references/backend/schema.md` for tables, JSON Schema, `x-antfly-*`
 - `references/backend/indexes.md` for full-text, embeddings, graph indexes
@@ -96,3 +109,5 @@ Defaults:
 - API key auth is `Authorization: ApiKey base64(keyID:keySecret)`
 - retrieval agent endpoint is `/api/v1/agents/retrieval`
 - current React package exports `AnswerResults`, not `RAGResults`
+- MCP server at `/mcp/v1/` — use for database operations from agents
+- A2A protocol at `/a2a` — use for RAG and query building from agents

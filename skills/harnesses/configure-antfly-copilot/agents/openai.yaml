@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Antfly for Copilot"
+  short_description: "Connect Copilot Studio to Antfly MCP"
+  default_prompt: "Use $configure-antfly-copilot to connect Microsoft Copilot Studio to Antfly MCP with read-only access."

@@ -1,113 +1,47 @@
 ---
 name: antfly
-description: Use this skill when working with Antfly applications, APIs, schemas, indexes, queries, retrieval-agent flows, React components, or Antfly deployment and operations. It helps choose the right Antfly feature, avoid stale component names and query shapes, and load the smallest useful backend, frontend, or ops context before coding.
+description: Provide legacy Antfly guidance for React components, frontend SDKs, A2A, Kubernetes, storage, inference operations, and deployment topics not yet covered by focused Skills. Also use when explicitly asked to explain or list the Antfly Skill catalog; do not use as the default for MCP connection, querying, indexing, connector, troubleshooting, or support-agent tasks.
 ---
 
-# Antfly
+# Antfly Skill Router
 
-Use this skill for any task that builds on, debugs, integrates with, or operates Antfly.
+Select the smallest focused Skill that covers the task. Do not load the entire
+legacy reference tree by default.
 
-## Agent Protocols
+## Route by outcome
 
-Antfly has built-in MCP and A2A servers. AI agents can interact with the database directly:
+- MCP connection, credentials, permissions, or smoke tests:
+  `skills/foundations/connect-antfly-mcp/SKILL.md`
+- Full-text, semantic, hybrid, filtered, graph, or relevance work:
+  `skills/foundations/query-antfly/SKILL.md`
+- Full-text, embeddings, multimodal, graph, or readiness work:
+  `skills/foundations/manage-antfly-indexes/SKILL.md`
+- Authentication, ingestion, index, timeout, MCP, or result diagnosis:
+  `skills/foundations/troubleshoot-antfly/SKILL.md`
+- GitHub ingestion:
+  `skills/connectors/sync-github-to-antfly/SKILL.md`
+- S3 or Cloudflare R2 ingestion:
+  `skills/connectors/sync-s3-to-antfly/SKILL.md`
+- Codex, Claude Code, n8n, or Copilot:
+  use the matching Skill under `skills/harnesses/`
+- Documentation support experience:
+  `skills/use-cases/build-antfly-support-agent/SKILL.md`
 
-- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1/` — create tables, manage indexes, insert data, run queries, backup/restore. See `references/backend/mcp.md`.
-- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — RAG with streaming (`retrieval` skill), natural language → query (`query-builder` skill). See `references/backend/a2a.md`.
+Read the selected SKILL.md completely, then load only the references it directs
+you to. Combine Skills through the applicable manifest in `guides/`.
 
-Use MCP for database CRUD. Use A2A for search reasoning and answer generation.
+## Compatibility references
 
-## Reference Material
+The root `references/backend`, `references/frontend`, and `references/ops`
+directories are retained for tasks not yet covered by focused Skills. Treat
+their exact commands, endpoint assumptions, tool counts, and authentication
+examples as legacy until verified against current Antfly documentation or live
+capability discovery.
 
-Start with the smallest useful context:
-- Backend task:
-  Read `references/backend/index.md`, then only the specific module needed
-- Frontend task:
-  Read `references/frontend/index.md`, then only the specific module needed
-- Ops task:
-  Read `references/ops/index.md`, then only the specific module needed
-- Full-stack task:
-  Read `references/backend/index.md` first, then `references/frontend/index.md`
+## Safety
 
-Before writing code, identify:
-- which table(s) are involved
-- whether the task is full-text, semantic, hybrid, graph, or retrieval-agent based
-- which fields must be `keyword` for filters and aggregations
-- which embeddings index name is required for semantic search
-- whether the environment is `antfly swarm` or distributed / Kubernetes
-
-## Backend Routing
-
-For direct agent interaction, prefer MCP tools (see `references/backend/mcp.md`).
-For RAG and intelligent search, use A2A (see `references/backend/a2a.md`).
-For SDK/API reference, read:
-- `references/backend/connect.md` for auth, clients, API URL
-- `references/backend/schema.md` for tables, JSON Schema, `x-antfly-*`
-- `references/backend/indexes.md` for full-text, embeddings, graph indexes
-- `references/backend/data.md` for inserts, batch, linear merge, sync levels
-- `references/backend/search.md` for query shapes and search behavior
-- `references/backend/rag.md` for retrieval agent and streaming answer flows
-- `references/backend/integrations.md` for CDC and document sync
-- `references/backend/auth.md` for users, API keys, RBAC
-- `references/backend/patterns.md` for common recipes
-
-Choose features this way:
-- exact match / filtering / sorting:
-  full-text with correct `keyword` or `numeric` fields
-- semantic similarity:
-  `semantic_search` with explicit `indexes`
-- keyword + semantic relevance:
-  hybrid search
-- citation-backed answers:
-  retrieval agent
-- relationship traversal:
-  graph indexes and graph queries
-
-## Frontend Routing
-
-Read:
-- `references/frontend/sdk.md` for direct SDK use
-- `references/frontend/components.md` for React component props and wiring
-- `references/frontend/hooks.md` for custom streaming and citation handling
-- `references/frontend/patterns.md` for app-level UI recipes
-
-Choose UI this way:
-- search page:
-  `Antfly` + `QueryBox` + `Facet` + `ActiveFilters` + `Results`
-- streaming answer UI:
-  `QueryBox mode="submit"` + `AnswerResults`
-- custom UI:
-  `@antfly/sdk` + `useAnswerStream`
-
-Current React surface:
-- use `AnswerResults`, not `RAGResults`
-- import styles from `@antfly/components/styles`
-
-## Ops Routing
-
-Read:
-- `references/ops/swarm.md` for local single-node setup
-- `references/ops/kubernetes.md` for production deployment
-- `references/ops/docker.md` for Docker / compose
-- `references/ops/storage.md` for storage backends
-- `references/ops/secrets.md` for credentials and keystore
-- `references/ops/termite.md` for model serving and inference
-- `references/ops/monitoring.md` for health and metrics
-- `references/ops/config.md` for exact config keys and env vars
-
-Defaults:
-- local dev / quickstart:
-  assume `antfly swarm`
-- production / HA / autoscaling:
-  assume Kubernetes operator and distributed mode
-
-## Critical Antfly Sharp Edges
-
-- `semantic_search` requires `indexes: ["index_name"]`
-- `x-antfly-types` is an array, not a string
-- facets / aggregations require `keyword` fields
-- use `sync_level: "aknn"` if vector results must be queryable immediately after writes
-- API key auth is `Authorization: ApiKey base64(keyID:keySecret)`
-- retrieval agent endpoint is `/api/v1/agents/retrieval`
-- current React package exports `AnswerResults`, not `RAGResults`
-- MCP server at `/mcp/v1/` — use for database operations from agents
-- A2A protocol at `/a2a` — use for RAG and query building from agents
+- Prefer read-only, instance-scoped credentials for retrieval agents.
+- Discover live MCP capabilities instead of relying on a fixed tool count.
+- Stop on authentication and authorization failures.
+- Ask before destructive table, index, document, backup, or restore operations.
+- Never print or commit credentials.

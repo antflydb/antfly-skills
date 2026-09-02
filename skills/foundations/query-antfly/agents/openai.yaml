@@ -1,0 +1,4 @@
+interface:
+  display_name: "Query Antfly"
+  short_description: "Build and verify Antfly retrieval queries"
+  default_prompt: "Use $query-antfly to build and test the right Antfly query for this retrieval task."

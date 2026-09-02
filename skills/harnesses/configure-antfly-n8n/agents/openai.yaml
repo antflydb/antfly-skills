@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Antfly for n8n"
+  short_description: "Connect n8n agents to Antfly retrieval"
+  default_prompt: "Use $configure-antfly-n8n to build and verify an n8n agent workflow backed by Antfly retrieval."

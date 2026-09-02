@@ -1,17 +1,27 @@
-# Antfly Skills
+# Antfly Guides and Skills Library
 
-Primary skill entrypoint: `SKILL.md`.
+Use `SKILL.md` as the compatibility router and `catalog.yaml` as the canonical
+library inventory.
 
-## Agent Protocols
+## Artifact model
 
-Antfly has built-in MCP and A2A servers:
-- **MCP** at `{{ANTFLY_API_URL}}/mcp/v1/` — create tables, indexes, insert data, query. See `references/backend/mcp.md`.
-- **A2A** at `{{ANTFLY_API_URL}}/a2a` — RAG with streaming, query building. See `references/backend/a2a.md`.
+- `guides/`: complete outcome packages with human-facing content and machine-readable composition manifests.
+- `skills/foundations/`: reusable Antfly operations.
+- `skills/connectors/`: source-connector setup and verification.
+- `skills/harnesses/`: agent-runtime configuration and security boundaries.
+- `skills/use-cases/`: business outcomes that compose other Skills.
+- `schemas/`: catalog contracts.
+- `scripts/`: library validation.
 
-## Reference Material
-- Start with `references/backend/index.md` for backend work
-- Start with `references/frontend/index.md` for frontend work
-- Start with `references/ops/index.md` for ops work
-- Prefer the current React surface: `AnswerResults`, not `RAGResults`
-- Import component styles from `@antfly/components/styles`
-- `semantic_search` requires explicit `indexes`
+Read a selected SKILL.md completely before editing or following it. Keep Skill
+frontmatter to `name` and `description`, use verb-led hyphen-case names, keep
+detailed variant material in one-level references, and validate with:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 scripts/validate_library.py
+python3 scripts/scan_secrets.py
+```
+
+Preserve read-only defaults for retrieval agents, discover current MCP
+capabilities instead of hard-coding counts, and never commit credentials.

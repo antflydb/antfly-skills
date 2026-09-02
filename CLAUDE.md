@@ -1,17 +1,15 @@
-# Antfly Skills
+# Antfly Guides and Skills Library
 
-Primary skill entrypoint: `SKILL.md`.
+Use `SKILL.md` to route an Antfly task to the smallest Skill in `skills/`.
+Use `catalog.yaml` and `guides/` to compose customer outcomes.
 
-## Agent Protocols
+Read the chosen SKILL.md completely and load only its required references.
+Do not treat the legacy root reference tree as the source of truth for exact
+commands, endpoint paths, authentication, or MCP tool counts without verifying
+them against the connected server or current product documentation.
 
-Antfly has built-in MCP and A2A servers:
-- **MCP** at `{{ANTFLY_API_URL}}/mcp/v1/` — create tables, indexes, insert data, query. See `references/backend/mcp.md`.
-- **A2A** at `{{ANTFLY_API_URL}}/a2a` — RAG with streaming, query building. See `references/backend/a2a.md`.
+For retrieval agents, use instance-scoped read-only credentials, keep business
+actions on separate credentials, and never print or commit a key.
 
-## Reference Material
-- Start with `references/backend/index.md` for backend work
-- Start with `references/frontend/index.md` for frontend work
-- Start with `references/ops/index.md` for ops work
-- Prefer the current React surface: `AnswerResults`, not `RAGResults`
-- Import component styles from `@antfly/components/styles`
-- `semantic_search` requires explicit `indexes`
+Install `requirements-dev.txt`, then run `python3 scripts/validate_library.py`
+and `python3 scripts/scan_secrets.py` after library changes.

@@ -1,0 +1,23 @@
+{
+  "default_allow": ["query", "get_document"],
+  "allow_on_demand": [
+    "list_tables",
+    "describe_table",
+    "list_indexes",
+    "describe_indexes",
+    "sample_documents",
+    "describe_query_request",
+    "describe_mcp_capabilities"
+  ],
+  "deny": [
+    "create_table",
+    "drop_table",
+    "create_index",
+    "drop_index",
+    "batch",
+    "backup",
+    "restore"
+  ],
+  "parallel_tool_calls": false,
+  "max_query_calls_per_answer": 2
+}

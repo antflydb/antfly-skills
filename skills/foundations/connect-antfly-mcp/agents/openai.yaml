@@ -1,0 +1,4 @@
+interface:
+  display_name: "Connect Antfly MCP"
+  short_description: "Connect an agent safely to Antfly MCP"
+  default_prompt: "Use $connect-antfly-mcp to connect this agent to an Antfly MCP endpoint and verify read-only access."

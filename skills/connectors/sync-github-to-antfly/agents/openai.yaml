@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync GitHub to Antfly"
+  short_description: "Index GitHub content through Antfly Cloud"
+  default_prompt: "Use $sync-github-to-antfly to configure and validate a GitHub source for Antfly Cloud."

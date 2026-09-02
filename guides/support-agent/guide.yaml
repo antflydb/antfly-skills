@@ -1,0 +1,45 @@
+schema_version: 1
+id: support-agent
+title: Antfly Documentation Support Agent
+subtitle: Build a grounded documentation support agent with Antfly retrieval.
+outcome: Answer product and technical questions from approved evidence with public citations and deterministic escalation.
+maturity: preview
+audience:
+  - support leaders
+  - developer experience teams
+  - agent developers
+skills:
+  required:
+    - build-antfly-support-agent
+    - connect-antfly-mcp
+    - query-antfly
+  choose_one_connector:
+    - sync-github-to-antfly
+    - sync-s3-to-antfly
+  choose_one_harness:
+    - configure-antfly-codex
+    - configure-antfly-claude-code
+    - configure-antfly-n8n
+    - configure-antfly-copilot
+starters:
+  - antflydb/knowledge-support
+  - antflydb/nextjs-support-agent
+security:
+  credential_scope: instance-scoped-read-only
+  tool_policy: skills/use-cases/build-antfly-support-agent/references/read-only-policy.json
+evaluations:
+  - skills/use-cases/build-antfly-support-agent/assets/support-agent-evals.json
+  - skills/use-cases/build-antfly-support-agent/assets/claude-code-regression-evals.json
+verification:
+  - Read-only MCP credential exposes query and get_document for normal operation.
+  - Broad and exact-term retrieval tests return explanatory chunks.
+  - Portable support-agent evaluations pass before publication.
+  - Public answers never expose private storage paths or credentials.
+compatibility:
+  antfly: main until the next stable release includes the current MCP contract
+  mcp: streamable HTTP
+provenance:
+  repository: antflydb/support-agent-templates
+  commits:
+    main: ab85564
+    packaging-research: 41ab932

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "adapter": "claude-code",
+  "cases": [
+    {
+      "id": "antfly-overview-and-use-cases",
+      "question": "What is Antfly and what are the best use cases?",
+      "category": "broad_product",
+      "expect": [
+        "semantic_first",
+        "one_initial_query",
+        "direct_stored_chunk_evidence",
+        "no_source_rollup",
+        "no_ancestor_hydration",
+        "no_field_projection",
+        "no_shell_or_filesystem_fallback",
+        "distributed_document_database",
+        "hybrid_search",
+        "rag_and_question_answering",
+        "application_search",
+        "local_or_embedded_use_case",
+        "useful_comparisons",
+        "friendly_public_citations",
+        "no_internal_retrieval_diagnostics"
+      ]
+    }
+  ]
+}

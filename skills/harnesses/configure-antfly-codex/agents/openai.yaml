@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Antfly for Codex"
+  short_description: "Connect Codex to Antfly Cloud MCP"
+  default_prompt: "Use $configure-antfly-codex to configure and smoke-test Antfly MCP in this Codex project."

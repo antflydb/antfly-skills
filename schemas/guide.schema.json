@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antfly.io/schemas/guide.schema.json",
+  "title": "Antfly Guide",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "title", "outcome", "maturity", "skills", "security", "evaluations", "verification"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "title": { "type": "string", "minLength": 3 },
+    "subtitle": { "type": "string", "minLength": 10 },
+    "outcome": { "type": "string", "minLength": 10 },
+    "maturity": { "enum": ["experimental", "preview", "verified", "deprecated"] },
+    "audience": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": { "type": "array", "items": { "$ref": "#/$defs/skill" }, "minItems": 1, "uniqueItems": true },
+        "choose_one_connector": { "type": "array", "items": { "$ref": "#/$defs/skill" }, "uniqueItems": true },
+        "choose_one_harness": { "type": "array", "items": { "$ref": "#/$defs/skill" }, "uniqueItems": true }
+      }
+    },
+    "starters": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_scope", "tool_policy"],
+      "properties": {
+        "credential_scope": { "type": "string", "minLength": 1 },
+        "tool_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evaluations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "verification": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "commits": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "skill": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+  }
+}

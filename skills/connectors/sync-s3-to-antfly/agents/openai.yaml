@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync S3 to Antfly"
+  short_description: "Index S3-compatible content in Antfly Cloud"
+  default_prompt: "Use $sync-s3-to-antfly to configure and validate this S3 or R2 source in Antfly Cloud."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build an Antfly Support Agent"
+  short_description: "Build grounded support with Antfly retrieval"
+  default_prompt: "Use $build-antfly-support-agent to design and validate a grounded support agent backed by Antfly."

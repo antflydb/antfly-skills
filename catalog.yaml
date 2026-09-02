@@ -1,0 +1,26 @@
+schema_version: 1
+name: Antfly Guides and Skills Library
+terminology:
+  guide: Complete customer outcome package and its human-facing Antfly UI and documentation experience.
+  skill: Agent-executable procedure that implements part or all of a Guide.
+  connector: Product integration configured and verified by a Skill.
+  starter: Optional code, configuration, or workflow assets copied into a project.
+guides:
+  - id: support-agent
+    manifest: guides/support-agent/guide.yaml
+skills:
+  foundations:
+    - skills/foundations/connect-antfly-mcp
+    - skills/foundations/query-antfly
+    - skills/foundations/manage-antfly-indexes
+    - skills/foundations/troubleshoot-antfly
+  connectors:
+    - skills/connectors/sync-github-to-antfly
+    - skills/connectors/sync-s3-to-antfly
+  harnesses:
+    - skills/harnesses/configure-antfly-codex
+    - skills/harnesses/configure-antfly-claude-code
+    - skills/harnesses/configure-antfly-n8n
+    - skills/harnesses/configure-antfly-copilot
+  use_cases:
+    - skills/use-cases/build-antfly-support-agent

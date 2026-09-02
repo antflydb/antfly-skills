@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Antfly for Claude Code"
+  short_description: "Connect Claude Code to Antfly MCP"
+  default_prompt: "Use $configure-antfly-claude-code to configure safe Antfly MCP access for this Claude Code project."

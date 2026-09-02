@@ -1,0 +1,4 @@
+interface:
+  display_name: "Troubleshoot Antfly"
+  short_description: "Diagnose Antfly connection and retrieval issues"
+  default_prompt: "Use $troubleshoot-antfly to diagnose this Antfly problem and recommend the safest next step."

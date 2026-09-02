@@ -1,0 +1,26 @@
+name: Validate Guides and Skills
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install validation dependencies
+        run: python3 -m pip install -r requirements-dev.txt
+      - name: Validate library catalog and packages
+        run: python3 scripts/validate_library.py
+      - name: Check shell scripts
+        run: find skills -type f -name '*.sh' -exec bash -n {} +
+      - name: Reject likely credential literals
+        run: python3 scripts/scan_secrets.py

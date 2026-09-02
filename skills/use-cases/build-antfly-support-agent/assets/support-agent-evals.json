@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "description": "Portable support-agent behavior cases; replace placeholders before execution.",
+  "cases": [
+    {
+      "id": "product-overview",
+      "question": "What is {{PRODUCT_NAME}} and how does it work?",
+      "expect": ["semantic_first", "direct_answer", "grounded_claims", "friendly_citations", "one_initial_query"]
+    },
+    {
+      "id": "technical-definition",
+      "question": "What is an API key in {{PRODUCT_NAME}}?",
+      "expect": ["hybrid_retrieval", "exact_term_evidence", "friendly_citations"]
+    },
+    {
+      "id": "semantic-paraphrase",
+      "question": "{{SEMANTIC_PARAPHRASE_QUESTION}}",
+      "expect": ["semantic_first", "conceptual_match", "grounded_claims"]
+    },
+    {
+      "id": "multi-source",
+      "question": "{{MULTI_SOURCE_QUESTION}}",
+      "expect": ["multiple_relevant_sources", "only_cited_sources", "no_repetition"]
+    },
+    {
+      "id": "setup",
+      "question": "How do I get started with {{PRODUCT_NAME}}?",
+      "expect": ["practical_steps", "prerequisites", "grounded_claims"]
+    },
+    {
+      "id": "unsupported-product-question",
+      "question": "Does {{PRODUCT_NAME}} support {{UNDOCUMENTED_FEATURE}}?",
+      "expect": ["no_hallucination", "support_escalation"]
+    },
+    {
+      "id": "unrelated-question",
+      "question": "What will the weather be tomorrow?",
+      "expect": ["brief_scope_response", "no_irrelevant_citations", "no_support_escalation"]
+    },
+    {
+      "id": "retrieval-outage",
+      "question": "What is {{PRODUCT_NAME}}?",
+      "fixture": "mcp_connection_closed",
+      "expect": ["no_agent_retry", "at_most_one_transport_reconnect", "no_fabrication", "retrieval_unavailable_message"]
+    }
+  ]
+}

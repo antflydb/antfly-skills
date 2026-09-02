@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Antfly Indexes"
+  short_description: "Create and verify Antfly search indexes"
+  default_prompt: "Use $manage-antfly-indexes to create or diagnose the indexes needed for this Antfly table."

@@ -38,7 +38,7 @@ These are separate packages. `@antfly/components` depends on `@antfly/sdk`, `rea
   <QueryBox id="search">                          {/* Input: captures search text */}
     <Autosuggest fields={["title"]} />            {/* Dropdown: autocomplete */}
   </QueryBox>
-  <Facet id="cat" fields={["category.keyword"]} /> {/* Sidebar: faceted filtering */}
+  <Facet id="cat" fields={["category"]} /> {/* Sidebar: faceted filtering */}
   {/* Output: renders search hits */}
   <Results
     id="results" searchBoxId="search"

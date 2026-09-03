@@ -16,7 +16,7 @@ Dense recipes for common use cases. Not runnable code — the pattern the AI sho
 7. Add `filter_query` for category/price filters, `aggregations` for facet counts
 8. UI: `<Antfly>` → `<QueryBox mode="live">` → `<Facet>` sidebar → `<Results>` with custom cards
 
-**Sharp edges**: Always specify `indexes` in query. Facet a `text` field through its derived `.keyword` subfield rather than the analyzed field. Use `sync_level: "full_index"` if querying right after load.
+**Sharp edges**: Always specify `indexes` in query. Facet on the plain field name — aggregation buckets read stored document values at the literal path, so a `.keyword`-suffixed path matches nothing (`.keyword` is a sort/search subfield only). Use `sync_level: "full_index"` if querying right after load.
 
 ## Documentation Q&A (RAG)
 

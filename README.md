@@ -3,12 +3,13 @@
 Antfly skill package for AI coding agents.
 
 Primary entrypoint:
-- `SKILL.md` for Codex-style skill invocation
+- `SKILL.md` — the skill definition (Agent Skills format)
 
 Compatibility files:
+- `agents/openai.yaml` — supplementary agent metadata
 - `AGENTS.md` for AGENTS-based workflows
 - `CLAUDE.md` for Claude-based workflows
-- `.cursorrules` for Cursor
+- `.cursorrules` for Cursor (legacy rules format; `.cursor/rules/*.mdc` is the current convention)
 
 Reference material:
 - `references/backend/`

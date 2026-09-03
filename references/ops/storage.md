@@ -1,80 +1,115 @@
-# Storage — S3, Local, Pebble
+# Storage — Lite, Local, Object
 
-## Storage Backends
+Deployment topology and durable storage are independent choices. A deployment mode answers *which processes run*; a storage engine answers *where durable state lives*.
 
-Antfly stores shard data in one of two backends:
+| Engine | Durable representation | Typical mode |
+|--------|------------------------|--------------|
+| `lite` | One portable `.aflite` file, one writable owner | embedded, standalone |
+| `local` | Directory-backed local shard and metadata storage | standalone, distributed |
+| `object` | Object-store-backed durable data | serverless |
 
-| Backend | Best for | How it works |
-|---------|----------|-------------|
-| **Local (Pebble)** | Low-latency, dev | Each shard has its own Pebble instance (RocksDB successor) on local disk |
-| **S3** | Cost-optimized, production | Shard data stored in S3-compatible object storage |
+Storage is a tagged union: `storage.engine` is required, and the member matching it is required as well — `engine: local` without a `local` block is rejected, as is any non-matching member. Mixed local/object configurations are rejected so data placement cannot silently diverge.
 
-## S3 Backend
+## Local Engine
 
-### Benefits
-- ~87% storage cost reduction vs local NVMe
-- 100-1000x faster shard splits (reference existing files, no copy)
-- 30-60x faster migrations
-- Only Raft leader writes to S3 — followers read shared objects (no 3x duplication)
+Directory-backed under `--data-dir`. The default primary backend is LSM, and shard data, the metadata Raft apply store, full-text, dense/HBC, sparse, and graph-reverse storage all sit on it. LMDB survives only as a legacy primary-backend variant: it is compiled out of the shipped `antfly` binary and no config key or CLI flag selects it, so nothing in a released build stores data in LMDB. Even in an LMDB build only the primary document store would follow it — the index subsystems resolve to LSM for every primary kind.
 
-### Configuration
-
-```yaml
-s3:
-  enabled: true
-  endpoint: "s3.amazonaws.com"       # or "localhost:9000" for MinIO
-  region: "us-east-1"
-  bucket: "antfly-production-data"
-  prefix: "cluster-1/shards"
-  use_ssl: true
+```json
+{
+  "storage": {
+    "engine": "local",
+    "local": { "base_dir": "antflydb" }
+  }
+}
 ```
 
-### Credentials
+`base_dir` has schema default `"antflydb"`, but when the key is unset the runtime resolves `$HOME/.antfly` and only falls back to `antflydb` when `HOME` is empty or unset. See `standalone.md` for the data-directory layout.
 
-**Preferred**: Environment variables
-```bash
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
+## Lite Engine
+
+```json
+{
+  "storage": {
+    "engine": "lite",
+    "lite": { "path": "./data.antfly.aflite", "fsync": true }
+  }
+}
 ```
 
-**Alternative**: Antfly keystore
-```yaml
-s3:
-  access_key_id: ${secret:aws.access_key_id}
-  secret_access_key: ${secret:aws.secret_access_key}
+`path` must end in `.aflite`. Lite pins `replication_factor: 1`, `default_shards_per_table: 1`, and `disable_shard_alloc: true`.
+
+## Object Engine (Serverless)
+
+The object engine backs serverless mode: stateless workers over immutable object-store state, split into `artifacts`, `manifests`, `wal`, `progress`, and `catalog` lanes. It requires `deployment_mode: serverless` — any other mode is rejected at config load.
+
+```json
+{
+  "deployment_mode": "serverless",
+  "connections": {
+    "production-storage": {
+      "kind": "external_io",
+      "capabilities": ["storage.primary"],
+      "external_io": {
+        "protocol": "s3",
+        "region": "us-west-2",
+        "endpoint": "s3.amazonaws.com",
+        "use_ssl": true,
+        "buckets": ["antfly-data", "antfly-wal"],
+        "prefix": "production",
+        "bucket_provisioning": "require_existing",
+        "credentials": {
+          "source": "web_identity",
+          "role_arn": "arn:aws:iam::123456789012:role/antfly-data",
+          "token_file": "/var/run/secrets/data/token"
+        }
+      }
+    }
+  },
+  "storage": {
+    "engine": "object",
+    "object": {
+      "connection": "production-storage",
+      "bucket": "antfly-data",
+      "prefix": "production/cluster-1",
+      "lanes": {
+        "wal": { "bucket": "antfly-wal", "prefix": "production/cluster-1/wal" }
+      }
+    }
+  }
+}
 ```
 
-**Never** hardcode credentials in config files.
+- `connection` must name an `external_io` connection with the `storage.primary` capability
+- `buckets` is a required non-empty allowlist — unrestricted bucket access is never inferred
+- `bucket_provisioning`: `require_existing` (default) or `create_if_missing`
+- Each lane may override `connection`, `bucket`, or `prefix`; lanes on the same connection share one client and connection pool
+- `credentials.source`: `default` | `static` | `profile` | `web_identity`
+
+`default` uses the refreshable AWS default chain (environment, web identity/IRSA, shared profiles, ECS task credentials, EC2 instance metadata). Static keys should come from secret references, never plaintext.
 
 ### Compatible Services
 
-| Service | Endpoint | Notes |
-|---------|----------|-------|
-| AWS S3 | `s3.amazonaws.com` | Use IRSA in EKS for auth |
-| Cloudflare R2 | `<account>.r2.cloudflarestorage.com` | S3-compatible, no egress fees |
-| MinIO | `localhost:9000` | Local dev, `use_ssl: false` |
-| Any S3-compatible | varies | Must support multipart upload |
+S3-compatible object stores (AWS S3, Cloudflare R2, MinIO) via `protocol: s3`. `storage.engine: object` validation requires `protocol: s3`, so a `gcs` connection cannot back primary storage — GCS `external_io` connections exist for other capabilities.
 
-### How It Works Internally
+GCS is reachable on the other path. `antfly serverless` parses lane URIs directly and accepts exactly three schemes — `file://`, `s3://`, and `gs://` — supplied as flags or environment variables (`--wal-uri gs://bucket/prefix`, `ANTFLY_SERVERLESS_WAL_URI`, and so on), with GCS credentials taken from the environment. The two paths are mutually exclusive: `--config` requires `storage.engine: object` and then rewrites every lane URI as an `s3://` string. A GCS serverless deployment is therefore URI-configured, not config-configured.
 
-1. Raft leader writes SSTable files to S3
-2. Followers read shared S3 objects (no duplication)
-3. Shard splits reference existing S3 files (instant, no copy)
-4. Background compaction gradually creates shard-specific files
+## Local MinIO Development
 
-## Local Storage (Pebble)
+`devops/docker-compose-s3` runs MinIO plus a locally built Antfly image on `serverless combined`. As shipped, the Antfly container's own published ports do not answer — see `docker.md` for what to add:
 
-Default backend. Data stored in `--data-dir` (default: `~/.antfly`).
+```bash
+cd devops/docker-compose-s3 && docker compose up -d
+```
 
-Each shard gets its own Pebble instance within the data directory. Raft logs stored alongside.
-
-Delete `~/.antfly` to start completely fresh.
+- MinIO on `9000` (API) and `9001` (console), credentials `minioadmin` / `minioadmin`
+- Bucket `antfly-data` created on startup by the `minio-setup` job
+- Endpoint `minio:9000`, `use_ssl: false`, `addressing_style: path`
 
 ## Sharp Edges
 
-- S3 adds network latency to reads — local storage is lower-latency but higher-cost
-- S3 credentials rotate: if using IAM roles, ensure token refresh works
-- MinIO for local dev: set `use_ssl: false` and default creds `minioadmin/minioadmin`
-- S3 bucket must exist before starting Antfly — it won't create the bucket
-- `prefix` in S3 config scopes all shard data under that key prefix — useful for multi-cluster on one bucket
-- Switching from local to S3 requires data migration — not a live toggle
+- `storage.engine: object` outside `deployment_mode: serverless` is a config error, not a fallback
+- Changing engines is an explicit backup/restore migration, not a live toggle
+- The bucket allowlist and prefix boundaries are node config — rotating a credential cannot widen them
+- Low-level URI flags/env overrides are supported only *without* a connection-based config; mixing the two is rejected
+- Credential references are re-resolved before each backup, restore, or probe, so rotation applies without a restart — but primary object clients resolve once during serverless bootstrap, so use `default`, `profile`, or `web_identity` there
+- `remote_content.s3.*` is a separate trust domain from `storage.primary` — do not share a writer credential with it

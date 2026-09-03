@@ -11,10 +11,10 @@ Use this skill for any task that builds on, debugs, integrates with, or operates
 
 Antfly has built-in MCP and A2A servers. AI agents can interact with the database directly:
 
-- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1/` — create tables, manage indexes, insert data, run queries, backup/restore. See `references/backend/mcp.md`.
-- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — RAG with streaming (`retrieval` skill), natural language → query (`query-builder` skill). See `references/backend/a2a.md`.
+- **MCP server** at `{{ANTFLY_API_URL}}/mcp/v1` — 16 tools covering schema discovery, document sampling, queries, batch writes, and table/index administration. With auth enabled, tools are permission-filtered by the key's scope (a read-only key gets a read-only surface). See `references/backend/mcp.md`.
+- **A2A protocol** at `{{ANTFLY_API_URL}}/a2a` — experimental; requires the server to run with `--experimental`, and with auth enabled `/a2a` additionally requires admin permission. Skills: `retrieval` (RAG with streaming) and `query-builder` (natural language → Antfly QueryRequest). See `references/backend/a2a.md`.
 
-Use MCP for database CRUD. Use A2A for search reasoning and answer generation.
+Use MCP for database work. For RAG and answer generation, the stable surface is `POST /db/v1/agents/retrieval` (see `references/backend/rag.md`); A2A offers the same skills on experimental deployments.
 
 ## Reference Material
 
@@ -31,14 +31,13 @@ Start with the smallest useful context:
 Before writing code, identify:
 - which table(s) are involved
 - whether the task is full-text, semantic, hybrid, graph, or retrieval-agent based
-- which fields must be `keyword` for filters and aggregations
-- which embeddings index name is required for semantic search
-- whether the environment is `antfly swarm` or distributed / Kubernetes
+- which fields need `x-antfly-field` declarations for sorting, and which embeddings index name is required for semantic search
+- whether the environment is `antfly standalone`, distributed / Kubernetes, or serverless
 
 ## Backend Routing
 
 For direct agent interaction, prefer MCP tools (see `references/backend/mcp.md`).
-For RAG and intelligent search, use A2A (see `references/backend/a2a.md`).
+For RAG and intelligent search, use the retrieval agent (see `references/backend/rag.md`).
 For SDK/API reference, read:
 - `references/backend/connect.md` for auth, clients, API URL
 - `references/backend/schema.md` for tables, JSON Schema, `x-antfly-*`
@@ -49,14 +48,15 @@ For SDK/API reference, read:
 - `references/backend/integrations.md` for CDC and document sync
 - `references/backend/auth.md` for users, API keys, RBAC
 - `references/backend/patterns.md` for common recipes
+- `references/backend/capabilities.md` for the exact MCP/A2A/REST capability matrix
 
 Choose features this way:
 - exact match / filtering / sorting:
-  full-text with correct `keyword` or `numeric` fields
+  full-text with the right field declarations (`x-antfly-field` with `sortable: true` for sort fields)
 - semantic similarity:
   `semantic_search` with explicit `indexes`
 - keyword + semantic relevance:
-  hybrid search
+  hybrid search (RRF by default; `merge_config` selects `rsf` or per-index weights — the spec's `failover` value is rejected at runtime)
 - citation-backed answers:
   retrieval agent
 - relationship traversal:
@@ -85,29 +85,29 @@ Current React surface:
 ## Ops Routing
 
 Read:
-- `references/ops/swarm.md` for local single-node setup
+- `references/ops/standalone.md` for local single-node setup
 - `references/ops/kubernetes.md` for production deployment
 - `references/ops/docker.md` for Docker / compose
 - `references/ops/storage.md` for storage backends
-- `references/ops/secrets.md` for credentials and keystore
-- `references/ops/termite.md` for model serving and inference
+- `references/ops/secrets.md` for credentials and the secret store
+- `references/ops/inference.md` for model serving and inference
 - `references/ops/monitoring.md` for health and metrics
 - `references/ops/config.md` for exact config keys and env vars
 
 Defaults:
 - local dev / quickstart:
-  assume `antfly swarm`
+  assume `antfly standalone`
 - production / HA / autoscaling:
   assume Kubernetes operator and distributed mode
 
 ## Critical Antfly Sharp Edges
 
-- `semantic_search` requires `indexes: ["index_name"]`
+- `semantic_search` requires `indexes: ["index_name"]` — omitting it is rejected with HTTP 422 ("unsupported query request")
 - `x-antfly-types` is an array, not a string
-- facets / aggregations require `keyword` fields
-- use `sync_level: "aknn"` if vector results must be queryable immediately after writes
+- sortable fields need `sortable: true` via `x-antfly-field` or a dynamic template (`_id` is always sortable); analyzed `text` fields sort via `field.keyword`
+- use `sync_level: "full_index"` if vector results must be queryable immediately after writes
 - API key auth is `Authorization: ApiKey base64(keyID:keySecret)`
-- retrieval agent endpoint is `/api/v1/agents/retrieval`
+- retrieval agent endpoint is `/db/v1/agents/retrieval`; answer generation runs only when `steps.generation` is configured
 - current React package exports `AnswerResults`, not `RAGResults`
-- MCP server at `/mcp/v1/` — use for database operations from agents
-- A2A protocol at `/a2a` — use for RAG and query building from agents
+- MCP server at `/mcp/v1` — with auth enabled, tools are permission-filtered by the key's scope
+- A2A at `/a2a` requires `--experimental` (plus admin permission when auth is enabled); agent card at `/.well-known/agent-card.json`

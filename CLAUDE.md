@@ -1,15 +1,17 @@
-# Antfly Guides and Skills Library
+# Antfly Skills
 
-Use `SKILL.md` to route an Antfly task to the smallest Skill in `skills/`.
-Use `catalog.yaml` and `guides/` to compose customer outcomes.
+Primary skill entrypoint: `SKILL.md` — the flagship skill and router into the
+focused Skills library (`catalog.yaml`). The reference tree under `references/`
+is the CI-verified fact core.
 
-Read the chosen SKILL.md completely and load only its required references.
-Do not treat the legacy root reference tree as the source of truth for exact
-commands, endpoint paths, authentication, or MCP tool counts without verifying
-them against the connected server or current product documentation.
+## Agent Protocols
 
-For retrieval agents, use instance-scoped read-only credentials, keep business
-actions on separate credentials, and never print or commit a key.
+Antfly has built-in MCP and A2A servers:
+- **MCP** at `{{ANTFLY_API_URL}}/mcp/v1` — 16 tools for schema discovery, sampling, queries, batch writes, and administration; permission-filtered by the key's scope. See `references/backend/mcp.md`.
+- **A2A** at `{{ANTFLY_API_URL}}/a2a` — experimental (`--experimental`; admin permission when auth is enabled); RAG with streaming, query building. The stable RAG surface is `POST /db/v1/agents/retrieval`. See `references/backend/a2a.md`.
 
-Install `requirements-dev.txt`, then run `python3 scripts/validate_library.py`
-and `python3 scripts/scan_secrets.py` after library changes.
+## Reference Material
+- Start with the focused Skill that covers the task (see `SKILL.md`); fall back to `references/{backend,frontend,ops}/index.md`
+- Prefer the current React surface: `AnswerResults`, not `RAGResults`
+- Import component styles from `@antfly/components/styles`
+- `semantic_search` requires explicit `indexes` — omitting it is rejected with HTTP 422

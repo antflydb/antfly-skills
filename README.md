@@ -1,11 +1,17 @@
-# Antfly Guides and Skills Library
+# antfly-skills
 
-Reusable Guides, Agent Skills, and Starters for building with Antfly.
+Antfly skills for AI coding agents, installable with the
+[skills CLI](https://skills.sh):
 
-- **Guides** package and present a complete, testable customer outcome in the Antfly UI and documentation.
-- **Skills** give an agent the procedures and guardrails needed to implement a Guide.
-- **Connectors** move data into Antfly or expose Antfly to a harness.
-- **Starters** are optional code or workflow assets copied into a project.
+```bash
+npx skills add antflydb/antfly-skills
+```
+
+That installs the flagship `antfly` skill — verified, CI-checked knowledge of
+Antfly's APIs, query shapes, React components, and operations, which also
+routes agents to the focused Skills below. Install a focused Skill directly
+with `npx skills add antflydb/antfly-skills --full-depth --skill <name>`.
+Already installed? `npx skills update` pulls the latest corpus.
 
 The first preview Guide is `support-agent`. Its reusable behavior
 is migrated from `antflydb/support-agent-templates`, with portable evaluations
@@ -31,7 +37,7 @@ It composes with the Workspace Guide or another ingestion workflow.
 | Use cases | `build-antfly-support-agent`, `build-antfly-workspace-agent` |
 
 See `catalog.yaml` for machine-readable composition and `guides/` for complete
-Guide manifests and the human-facing experience. The original root `SKILL.md`
+Guide manifests and the human-facing experience. The root `SKILL.md`
 and `references/` remain
 available as a compatibility entrypoint while consumers migrate to focused
 skills.
@@ -46,3 +52,19 @@ python3 scripts/scan_secrets.py
 
 Validation checks the catalog and Guide manifests against their JSON Schema,
 Skill frontmatter, referenced packages and resources, and required UI metadata.
+
+Guides under `guides/` are playbooks: complete outcome compositions an agent
+reads and executes — they are not installable skills. Each corresponds to a
+human guide on [antfly.io/docs](https://antfly.io/docs/guides).
+
+## Validation
+
+Both checks run in CI and locally:
+
+```bash
+node tools/verify-references.mjs        # fact harness (against openapi.yaml in CI)
+python3 scripts/validate_library.py     # packaging / catalog contract
+```
+
+Replace `{{ANTFLY_API_URL}}` in the files if you want the packaged examples to
+point at a specific Antfly deployment.

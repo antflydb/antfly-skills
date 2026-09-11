@@ -30,3 +30,9 @@ into public `main`; its competing terminology is not adopted here.
 
 Do not duplicate updates across both repositories indefinitely. During preview,
 record the source commit in the Guide manifest and periodically reconcile it.
+
+## Existing installs
+
+Nothing breaks for anyone who already ran `npx skills add antflydb/antfly-skills` —
+the root skill keeps its name and location. Run `npx skills update` to pull the
+current, corrected reference corpus.

@@ -1,0 +1,24 @@
+name: verify-references
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch the current Antfly API contract
+        run: |
+          curl -fsSL -o /tmp/antfly-openapi.yaml \
+            https://raw.githubusercontent.com/antflydb/antfly/main/openapi.yaml
+
+      - name: Verify references against the contract
+        run: ANTFLY_OPENAPI=/tmp/antfly-openapi.yaml node tools/verify-references.mjs --require-openapi

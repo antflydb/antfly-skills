@@ -6,7 +6,6 @@
 {
   "semantic_search": "expanded conceptual intent",
   "indexes": ["{{VECTOR_INDEX}}"],
-  "hierarchy": {"return_level": "chunk"},
   "limit": 6
 }
 ```
@@ -19,14 +18,15 @@
   "semantic_search": "expanded question intent",
   "indexes": ["{{VECTOR_INDEX}}"],
   "merge_config": {"strategy": "rrf"},
-  "hierarchy": {"return_level": "chunk"},
   "limit": 6
 }
 ```
 
-These are patterns, not a frozen API schema. Keep the direct-chunk hierarchy
-setting for grounded retrieval. Do not add `fields`, hierarchy `include`, source
-rollup, or `max_children_per_parent` unless a live regression test proves that
-the returned explanatory chunk text is preserved. Use `describe_query_request`
+These are patterns, not a frozen API schema. Chunk-level hits come back
+directly; use `hierarchy` only to group results or fetch ancestors/children —
+grouping levels are `source` and `unit`, and a `return_level` field does not exist — per
+`references/backend/search.md`. Do not add `fields` projection or source
+rollup unless a live regression test proves the returned explanatory chunk
+text is preserved. Use `describe_query_request`
 to confirm other graph, rendering, filtering, and analysis fields against the
 connected server.

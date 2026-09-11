@@ -19,7 +19,7 @@ Build the smallest valid query that answers the retrieval need.
 3. Call `describe_query_request` when the live request shape is uncertain.
 4. Keep `tableName` outside raw `queryRequest` in MCP calls.
 5. Specify `indexes` for semantic retrieval.
-6. For direct chunk evidence, request `hierarchy.return_level: "chunk"` and omit field projection, source rollup, ancestor inclusion, and `max_children_per_parent`; those options can collapse the returned chunk text into metadata-only children.
+6. Chunk-level hits come back directly; do not add field projection, source rollup, or ancestor/children grouping unless needed — those options can collapse the returned chunk text into metadata-only children. `hierarchy` grouping levels are `source` and `unit` (see `references/query-patterns.md`).
 7. Evaluate explanatory content, ranking, latency, and source coverage—not just hit count.
 8. Change one query variable at a time and preserve a repeatable evaluation case.
 

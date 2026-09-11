@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure Antfly for Google ADK"
+  short_description: "Build Google agents with Antfly MCP retrieval"
+  default_prompt: "Use $configure-antfly-google-adk to connect a Google ADK and Vertex AI agent to my Antfly dataset through MCP and verify it before optional Cloud Run deployment."

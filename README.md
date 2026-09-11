@@ -11,14 +11,24 @@ The first preview Guide is `support-agent`. Its reusable behavior
 is migrated from `antflydb/support-agent-templates`, with portable evaluations
 and the Claude direct-chunk regression preserved as separate suites.
 
+The experimental [Google Workspace Agent Guide](guides/workspace-agent/guide.md) covers
+Workspace setup, ingestion into Antfly and an MCP connection to the chosen agent runtime.
+Drive, Gmail, Meet and Calendar are source options. Graph enrichment is optional and has
+its own readiness checks. The current pilot covers selected Gmail/Drive/Meet snapshots;
+Calendar and continuous sync are not yet implemented.
+
+The experimental [Google Agent Guide](guides/google-agent/guide.md) covers Google ADK,
+Gemini on Vertex AI, Antfly MCP retrieval and optional private Cloud Run deployment.
+It composes with the Workspace Guide or another ingestion workflow.
+
 ## Library
 
 | Category | Packages |
 | --- | --- |
 | Foundations | `connect-antfly-mcp`, `query-antfly`, `manage-antfly-indexes`, `troubleshoot-antfly` |
 | Connectors | `sync-github-to-antfly`, `sync-s3-to-antfly` |
-| Harnesses | `configure-antfly-codex`, `configure-antfly-claude-code`, `configure-antfly-n8n`, `configure-antfly-copilot` |
-| Use cases | `build-antfly-support-agent` |
+| Harnesses | `configure-antfly-codex`, `configure-antfly-claude-code`, `configure-antfly-n8n`, `configure-antfly-copilot`, `configure-antfly-google-adk` |
+| Use cases | `build-antfly-support-agent`, `build-antfly-workspace-agent` |
 
 See `catalog.yaml` for machine-readable composition and `guides/` for complete
 Guide manifests and the human-facing experience. The original root `SKILL.md`

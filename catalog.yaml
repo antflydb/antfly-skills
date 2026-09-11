@@ -8,6 +8,10 @@ terminology:
 guides:
   - id: support-agent
     manifest: guides/support-agent/guide.yaml
+  - id: workspace-agent
+    manifest: guides/workspace-agent/guide.yaml
+  - id: google-agent
+    manifest: guides/google-agent/guide.yaml
 skills:
   foundations:
     - skills/foundations/connect-antfly-mcp
@@ -18,9 +22,11 @@ skills:
     - skills/connectors/sync-github-to-antfly
     - skills/connectors/sync-s3-to-antfly
   harnesses:
+    - skills/harnesses/configure-antfly-google-adk
     - skills/harnesses/configure-antfly-codex
     - skills/harnesses/configure-antfly-claude-code
     - skills/harnesses/configure-antfly-n8n
     - skills/harnesses/configure-antfly-copilot
   use_cases:
     - skills/use-cases/build-antfly-support-agent
+    - skills/use-cases/build-antfly-workspace-agent

@@ -22,10 +22,15 @@ legacy reference tree by default.
   `skills/connectors/sync-github-to-antfly/SKILL.md`
 - S3 or Cloudflare R2 ingestion:
   `skills/connectors/sync-s3-to-antfly/SKILL.md`
+- Google ADK, Vertex AI, or Google agent deployment with Antfly:
+  `skills/harnesses/configure-antfly-google-adk/SKILL.md`
 - Codex, Claude Code, n8n, or Copilot:
   use the matching Skill under `skills/harnesses/`
 - Documentation support experience:
   `skills/use-cases/build-antfly-support-agent/SKILL.md`
+
+- Google Workspace ingestion and a general agent over Drive, Gmail, Meet or Calendar:
+  `skills/use-cases/build-antfly-workspace-agent/SKILL.md`
 
 Read the selected SKILL.md completely, then load only the references it directs
 you to. Combine Skills through the applicable manifest in `guides/`.

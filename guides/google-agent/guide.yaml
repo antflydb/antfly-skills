@@ -1,0 +1,32 @@
+schema_version: 1
+id: google-agent
+title: Google Agent with Antfly
+subtitle: Build a Google ADK and Vertex AI agent grounded in Antfly MCP retrieval.
+outcome: Connect a Google agent to an authorized Antfly dataset, return cited answers, and optionally deploy privately on Cloud Run.
+maturity: experimental
+audience:
+  - agent developers
+  - Google Cloud teams
+skills:
+  required:
+    - configure-antfly-google-adk
+    - connect-antfly-mcp
+    - query-antfly
+security:
+  credential_scope: read-only Antfly retrieval with trusted source scope; Google runtime and source credentials separated
+  tool_policy: skills/harnesses/configure-antfly-google-adk/references/runtime-and-mcp.md
+evaluations:
+  - skills/harnesses/configure-antfly-google-adk/assets/google-agent-evals.json
+verification:
+  - A Vertex model call passes under the configured runtime identity.
+  - MCP initialization, query and source lookup pass through the selected agent.
+  - Returned claims have supporting citations and scope is enforced outside model arguments.
+  - Authorization and transport failures do not trigger fabricated fallback answers.
+  - Optional Cloud Run deployment passes private-access and authenticated workflow checks.
+compatibility:
+  harness: Google ADK Python; inspect and pin the tested SDK version
+  model: Gemini on Vertex AI; select an available model and supported location
+  retrieval: Antfly Streamable HTTP MCP with discovered schemas and read-only credentials
+  hosting: Local development or optional private Cloud Run with IAP
+provenance:
+  repository: antflydb/antfly-skills

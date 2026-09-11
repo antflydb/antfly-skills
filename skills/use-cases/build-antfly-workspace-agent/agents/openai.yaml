@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build a Google Workspace Agent"
+  short_description: "Connect Workspace data to an agent through Antfly"
+  default_prompt: "Use $build-antfly-workspace-agent to ingest selected Google Workspace sources into Antfly and connect my chosen agent through MCP."

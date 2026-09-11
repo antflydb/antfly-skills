@@ -1,0 +1,36 @@
+schema_version: 1
+id: workspace-agent
+title: Google Workspace Agent
+subtitle: Ingest Workspace knowledge into Antfly and connect your chosen agent through MCP.
+outcome: Answer and work across authorized Drive, Gmail, Meet and Calendar data using Antfly retrieval and an MCP-connected agent.
+maturity: experimental
+audience:
+  - knowledge workers
+  - Workspace administrators
+  - agent developers
+skills:
+  required:
+    - build-antfly-workspace-agent
+    - connect-antfly-mcp
+    - query-antfly
+    - manage-antfly-indexes
+security:
+  credential_scope: user-authorized source reads and caller-scoped read-only Antfly retrieval
+  tool_policy: skills/use-cases/build-antfly-workspace-agent/references/ingestion-and-agent.md
+evaluations:
+  - skills/use-cases/build-antfly-workspace-agent/assets/workspace-evals.json
+verification:
+  - Actual content reads pass independently for each selected Workspace service.
+  - Antfly ingestion, index readiness, search and source lookup are verified separately.
+  - MCP initialization and bounded retrieval pass through the selected agent runtime.
+  - Original source access is enforced before metadata, passages or derived facts reach the model.
+  - Answers cite supporting passages and correctly report missing or stale source coverage.
+  - Snapshot versus continuous synchronization is explicit; changes and revocations follow the implemented policy.
+  - Optional graph extraction, projection and traversal are independently verified before being advertised.
+compatibility:
+  workspace: Drive, Gmail, Meet and Calendar are source options; each needs authorization and a verified connector
+  antfly: Start with verified full-text retrieval; semantic and graph enrichment require separate readiness checks
+  mcp: Streamable HTTP and discovered tool schemas; private source scope requires server or adapter enforcement
+  harness: Google ADK, n8n or another compatible agent runtime
+provenance:
+  repository: antflydb/antfly-skills

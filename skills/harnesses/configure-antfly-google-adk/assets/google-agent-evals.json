@@ -1,0 +1,10 @@
+[
+  {"id":"vertex","check":"Actual model call succeeds with the selected runtime identity, project, location and model; CLI login alone is not counted."},
+  {"id":"mcp","check":"Initialization, a known query and source lookup pass through MCP in the actual agent runtime."},
+  {"id":"scope","check":"The model cannot query another table/account or remove mandatory source filters."},
+  {"id":"grounding","check":"Broad and exact questions return supporting passages and resolving citations; unsupported questions acknowledge missing evidence."},
+  {"id":"failure","check":"Authorization and transport failures stop safely without repeated model retries or substitute local answers."},
+  {"id":"private-source","check":"If applicable, revoked source access prevents metadata, passages and derived facts reaching the model."},
+  {"id":"sessions","check":"Separate users/sessions do not share retrieved evidence; runner and transport resources are closed."},
+  {"id":"deployment","check":"When deployed, verify IAM, anonymous denial, authenticated agent response and source links through the actual Cloud Run revision."}
+]

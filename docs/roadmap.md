@@ -1,31 +1,34 @@
 # Library roadmap
 
-## Preview release
+## Current library
 
-- Publish the Antfly Documentation Support Agent Guide and 11 initial Skills.
-- Verify Codex, Claude Code, n8n, and Copilot with read-only Cloud credentials.
-- Replace provisional Antfly compatibility text after the next stable release.
-- Require the Guide/Skill validation workflow on pull requests.
+The library contains the flagship `antfly` skill, 13 focused Skills, and three
+Guides. The Documentation Support Agent Guide is in preview; the Workspace
+and Google Agent Guides are experimental. See [the catalog](../catalog.yaml)
+for the current inventory.
 
-## Contract automation
+## Before promoting Guides to verified
 
-- Compare required and denied tools with `describe_mcp_capabilities`.
-- Validate canonical query patterns through `describe_query_request`.
+- Record supported Antfly and harness versions and live smoke-test results.
+- Run retrieval, citation, failure, and permission-boundary evaluations.
+- Replace provisional compatibility text with tested release versions.
+- Verify installed packages and their references outside this checkout.
+
+## Validation improvements
+
+- Compare required and denied tools with discovered MCP capabilities.
+- Validate canonical query patterns against the connected server.
 - Run known-positive semantic and hybrid retrieval fixtures.
-- Confirm read-only keys hide all mutation and administration tools.
-- Track cold connection, warm retrieval, fallback, and complete-answer latency.
+- Confirm read-only keys hide mutation and administration tools.
+- Track connection, retrieval, fallback, and complete-answer latency.
 
-## Catalog expansion
+## Candidate additions
 
-- Add OpenAI Agents SDK and Google ADK harness Skills.
-- Add website and PostgreSQL connector Skills.
-- Add Guides for documentation search, retrieval assessment, agent memory,
-  marketing operations, and GEO intelligence.
+These are possible directions, not release commitments. Propose and track
+specific work in [issues](https://github.com/antflydb/antfly-skills/issues).
 
-## Antfly UI
-
-- Render `guide.yaml` as the Guide catalog.
-- Ask the user to select a source connector and agent harness.
-- Provision or select an appropriately scoped key.
-- Generate install instructions or a downloadable Skill bundle.
-- Run verification and show completion state inside the Guide.
+- A first-success walkthrough from connection to a grounded answer.
+- More troubleshooting recipes and environment configuration examples.
+- OpenAI Agents SDK support, plus website and PostgreSQL connectors.
+- Guides for retrieval assessment and agent memory.
+- Guide catalog integration in the Antfly UI, including setup and verification.

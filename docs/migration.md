@@ -1,9 +1,8 @@
 # Migration from support-agent-templates
 
-`antflydb/support-agent-templates` at public-main commit `ab85564` remains the
-verified source for the existing harness implementations during preview. Local
-commit `41ab932` provides useful outcome-packaging research but is not merged
-into public `main`; its competing terminology is not adopted here.
+Use this library for the reusable support-agent behavior and harness setup
+previously packaged in `antflydb/support-agent-templates`. The Support Agent
+Guide remains in preview; validate your chosen harness before switching.
 
 ## Mapping
 
@@ -19,20 +18,20 @@ into public `main`; its competing terminology is not adopted here.
 | Copilot adapter | `skills/harnesses/configure-antfly-copilot/` |
 | Knowledge Support / Next.js applications | Starters referenced by the Support Agent Guide |
 
-## Graduation
+## Migrating a project
 
-1. Validate the four migrated harness Skills with live read-only Cloud keys.
-2. Run the portable evaluation suite against each harness.
-3. Add automated MCP contract-drift and permission-boundary tests.
-4. Mark the Support Agent Guide `verified` and record supported versions.
-5. Migrate the remaining harness adapters based on customer demand.
-6. Archive or redirect the template repository only after canonical parity is proven.
+1. Read the [Support Agent Guide](../guides/support-agent/guide.md).
+2. Install the focused Skills for your source connector and agent harness.
+3. Carry over your table, index, citation mapping, and escalation settings.
+   Keep credentials in the environment or harness secret store.
+4. Run the portable evaluations and applicable harness regression checks before
+   replacing the existing integration.
 
-Do not duplicate updates across both repositories indefinitely. During preview,
-record the source commit in the Guide manifest and periodically reconcile it.
+The Knowledge Support and Next.js applications remain separate Starters for
+projects that need a hosted UI.
 
 ## Existing installs
 
-Nothing breaks for anyone who already ran `npx skills add antflydb/antfly-skills` —
-the root skill keeps its name and location. Run `npx skills update` to pull the
-current, corrected reference corpus.
+The flagship `antfly` skill keeps its name and location. Run `npx skills update`
+to update an existing installation. Focused Skills are optional additions; see
+[the README](../README.md) for installation commands.

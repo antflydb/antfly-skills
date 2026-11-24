@@ -2,7 +2,7 @@
 
 - Retrieve required product evidence through Antfly MCP before answering.
 - Use only `query` and `get_document` in normal operation.
-- Prefer compact, direct chunk content; do not hydrate unnecessary ancestors or metadata.
+- Prefer compact, direct chunk content: send `"hierarchy": {}`, project only the text field you cite, never `_chunks.*`, and do not hydrate unnecessary ancestors or metadata.
 - Make one intent-selected query and at most one focused fallback.
 - Do not use shell, web, or filesystem tools as an undocumented retrieval fallback.
 - Do not expose private storage paths, credentials, or retrieval diagnostics.

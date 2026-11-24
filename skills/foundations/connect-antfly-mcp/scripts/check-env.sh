@@ -12,8 +12,9 @@ if [[ -z "${ANTFLY_API_KEY:-}" ]]; then
 fi
 
 case "${ANTFLY_MCP_URL}" in
-  https://*|http://localhost:*|http://127.0.0.1:*) ;;
-  *) echo "Use HTTPS for remote MCP endpoints." >&2; exit 1 ;;
+  http://*@*) echo "Credentials in the MCP URL are not allowed." >&2; exit 1 ;;
+  https://*|http://localhost:*|http://localhost/*|http://127.0.0.1:*|http://127.0.0.1/*|http://\[::1\]:*|http://\[::1\]/*) ;;
+  *) echo "Use HTTPS for non-loopback MCP endpoints." >&2; exit 1 ;;
 esac
 
 echo "Antfly MCP environment is present. Credential value was not printed."

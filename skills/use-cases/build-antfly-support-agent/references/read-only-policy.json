@@ -1,5 +1,8 @@
 {
-  "default_allow": ["query", "get_document"],
+  "default_allow": [
+    "query",
+    "get_document"
+  ],
   "allow_on_demand": [
     "list_tables",
     "describe_table",
@@ -9,6 +12,8 @@
     "describe_query_request",
     "describe_mcp_capabilities"
   ],
+  "deny_unlisted": true,
+  "deny_note": "Enforce as an allowlist: any tool not listed above is denied. Installed extensions can add tools to /mcp/v1, so a deny list alone can miss them; the deny entries below are illustrative.",
   "deny": [
     "create_table",
     "drop_table",

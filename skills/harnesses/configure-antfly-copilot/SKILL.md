@@ -1,6 +1,6 @@
 ---
 name: configure-antfly-copilot
-description: Configure, review, and smoke-test Microsoft Copilot Studio or GitHub Copilot connections to hosted Antfly Cloud MCP. Use when creating Copilot MCP configuration, setting the Cloud endpoint and bearer key, checking tool visibility, diagnosing Copilot MCP auth or path problems, or publishing a read-only Antfly-backed Copilot.
+description: Configure, review, and smoke-test Microsoft Copilot Studio or GitHub Copilot connections to Antfly MCP on Antfly Cloud or a self-hosted server. Use when creating Copilot MCP configuration, setting the Cloud endpoint and bearer key, checking tool visibility, diagnosing Copilot MCP auth or path problems, or publishing a read-only Antfly-backed Copilot.
 ---
 
 # Configure Antfly for Copilot
@@ -11,7 +11,8 @@ Studio before changing configuration.
 ## GitHub Copilot workflow
 
 1. Collect the instance ID and intended key tier.
-2. Use `https://platform.antfly.io/cloud/v1/<instance_id>/mcp/v1`.
+2. Use `https://platform.antfly.io/cloud/v1/<instance_id>/mcp/v1` for Cloud, or the self-hosted
+   server's `/mcp/v1` URL (`http://127.0.0.1:8080/mcp/v1` locally) with a key from `connect-antfly-mcp`.
 3. Create `.vscode/mcp.json` from `references/github-copilot.md` using a placeholder.
 4. Put the real key in a local/user secret mechanism; never commit it.
 5. Ask Copilot to list Antfly tools and tables.
@@ -19,7 +20,8 @@ Studio before changing configuration.
 
 ## Copilot Studio workflow
 
-1. Create the remote MCP tool connection in the intended Power Platform environment.
+1. Create the remote MCP tool connection in the intended Power Platform environment; it needs a
+   publicly reachable HTTPS endpoint, not a loopback URL.
 2. Store the Bearer credential in the managed connection.
 3. Disable “allow all tools” and select only read tools.
 4. Test with both the editor identity and the published-agent identity.

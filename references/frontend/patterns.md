@@ -31,7 +31,9 @@
 
 **Key decisions**:
 - `mode="submit"` is mandatory in practice — `AnswerResults` only reacts to submissions, and typing in a live-mode box never makes one. The single live-mode path that does submit is picking an Autosuggest entry with QueryBox's default select handler
-- `showFollowUpQuestions` is on by default; `showReasoning`, `showClassification`, `showConfidence`, `showHits` are off
+- `generator` is required
+- `showFollowUpQuestions` is on by default; `showReasoning`, `showClassification`, `showConfidence`, `showHits` are off. The follow-up, classification, and confidence steps are only requested when their flag is on
+- Changing request settings (table, generator, filters, prompts, `show*` flags …) aborts the current answer and clears it; `onRequestContextChange` tells you when. `onController` hands you each request's `AbortController`
 - Tune retrieval with `limit` (default 10), `filterQuery`, `exclusionQuery`, and `agentKnowledge`
 - Wire follow-up questions back into the QueryBox via `initialValue` + `autoSubmit` + a changing `submitSignal`
 
@@ -86,12 +88,12 @@ The render prop receives `value`, `onChange(value)`, `onSubmit(value)`, `onKeyDo
 
 **Goal**: Build a completely custom interface without the component library's UI.
 
-1. Use `@antfly/sdk` directly: `client.query(...)`, `client.retrievalAgent(...)`, `client.chatAgent(...)`
-2. Use `useAnswerStream` for one-shot streaming, `useChatStream` for conversations
+1. Use `@antfly/sdk` directly: `client.query(...)`, `client.streamRetrievalAgent(...)` (or `client.retrievalAgent(...)` for one JSON result), `client.chatAgent(...)`
+2. Use `useAnswerStream` for one-shot streaming, `useChatStream` for conversations, `useResearchStream` for deep research
 3. Use `useCitations` (or the standalone helpers) to render citations
 4. Use `useSearchHistory` for recent searches
 
-Both stream hooks are provider-independent: you supply `url` and `headers` yourself.
+The stream hooks are provider-independent: you supply `url` and `headers` yourself.
 
 ## Rendering Streamed Markdown
 
@@ -122,6 +124,29 @@ To show only cited sources, filter the hits:
 const citedIds = getCitedResourceIds(answer)
 const citedHits = hits.filter((hit) => citedIds.includes(hit._id))
 ```
+
+## Deep Research Report
+
+**Goal**: A long-running, cited research report instead of a single answer.
+
+```tsx
+import { ResearchReport, useResearchStream } from '@antfly/components'
+
+function Research({ question }: { question: string }) {
+  const { status, reportMarkdown, result, startStream } = useResearchStream()
+  if (result) return <ResearchReport result={result} />
+  return (
+    <div>
+      <button onClick={() => startStream({ url: API, headers, request: { query: question, queries: [{ table: 'docs' }] } })}>
+        Research
+      </button>
+      {status === 'streaming' && <pre>{reportMarkdown}</pre>}
+    </div>
+  )
+}
+```
+
+Render progress (`plan`, `findings`, `sections`, `reportMarkdown`) while `status === 'streaming'`, then hand the final `result` to `<ResearchReport>`, which resolves `[E#]` markers against `result.evidence`. Runs that may outlive one request belong on the SDK's durable job API (`client.runResearchJob`) instead — see `sdk.md`.
 
 ## URL State Sync
 

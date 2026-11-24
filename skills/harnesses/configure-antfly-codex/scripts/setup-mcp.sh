@@ -5,7 +5,12 @@ command -v codex >/dev/null 2>&1 || { echo "Codex CLI is not on PATH." >&2; exit
 : "${ANTFLY_MCP_URL:?ANTFLY_MCP_URL is required}"
 : "${ANTFLY_API_KEY:?ANTFLY_API_KEY is required in this shell}"
 
-case "${ANTFLY_MCP_URL}" in https://*) ;; *) echo "Remote MCP URL must use HTTPS." >&2; exit 1 ;; esac
+# HTTPS is required except for loopback hosts (local self-hosted Antfly).
+case "${ANTFLY_MCP_URL}" in
+  http://*@*) echo "Credentials in the MCP URL are not allowed." >&2; exit 1 ;;
+  https://*|http://localhost:*|http://localhost/*|http://127.0.0.1:*|http://127.0.0.1/*|http://\[::1\]:*|http://\[::1\]/*) ;;
+  *) echo "Use HTTPS for non-loopback MCP endpoints." >&2; exit 1 ;;
+esac
 
 codex mcp remove antfly >/dev/null 2>&1 || true
 codex mcp add antfly --url "${ANTFLY_MCP_URL}" --bearer-token-env-var ANTFLY_API_KEY

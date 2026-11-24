@@ -2,12 +2,13 @@
 
 ## Health Server
 
-The dedicated health server runs on its own port (default `4200` on `standalone`, `metadata`, and `data`; set with `--health-port`, disabled with `--health false`) and serves exactly three routes:
+The dedicated health server runs on its own port (default `4200` on `standalone`, `metadata`, and `data`; set with `--health-port`, disabled with `--health false`) and serves exactly four routes:
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /healthz` | Liveness — always returns ok while the process is up |
 | `GET /readyz` | Readiness — 503 until the node is ready, then 200 |
+| `GET /readyz/sql` | SQL readiness. Only `antfly serverless` supplies an SQL check; on `standalone`, `metadata`, and `data` it always answers 503 `not_ready` |
 | `GET /metrics` | Prometheus text exposition |
 
 Which host it binds differs by runtime. `antfly standalone` hands the health server the same `--host`
@@ -54,7 +55,7 @@ grep rather than working from a list. Representative families:
 - **Async indexing** — `antfly_async_index_*` counters and gauges for startup phases, WAL replay, catch-up progress, replay lag, and worker counts
 - **HTTP and requests** — `antfly_http_active_connections`, `antfly_http_active_requests`, `antfly_http_body_buffer_*`, `antfly_http_*_rejections_total`, and per-request counters such as `antfly_data_api_requests_total`
 - **Process and executors** — `antfly_process_*` (footprint, CPU, allocator) and `antfly_executor_*` lease/rejection counters
-- **Full text, HA, inference** — `antfly_full_text_*`, `antfly_ha_*`, `antfly_inference_cache_*`, and further per-subsystem families
+- **Full text, hot standby, inference** — `antfly_full_text_*`, `antfly_standby_*` (dual-emitted with the deprecated `antfly_ha_*` names for one minor release), `antfly_inference_cache_*`, and further per-subsystem families
 - **Liveness** — `antfly_data_server_up`
 
 Cache metrics carry `kind=`, resource metrics carry `slice=`, and `antfly_lsm_owner_*` carries
@@ -63,6 +64,8 @@ per-table attribution (`table=`, `group=`, `owner_kind=`, `owner=`).
 Resource slices are numerous — about thirty, spanning LSM, dense, full-text, lite, and inference
 subsystems (e.g. `lsm.block_table_cache`, `lsm.compaction_work`, `dense.search_working_set`,
 `full_text.segment_residency`, `text_merge.buffers`).
+
+A separate `antfly inference run` process exposes its own metrics at `/ml/v1/metrics` on the inference listener (generation queue/latency histograms, CUDA managed-memory and admission-reservation gauges; see `inference.md`). Hot-standby nodes also answer `/standby/v1/health` and `/standby/v1/ready` (`/ha/v1/*` aliases for one minor release).
 
 Interpret cache metrics together with resource-pressure metrics — the shared LSM cache is sized from the node/pod memory budget and mirrored into the `lsm.block_table_cache` hard limit.
 
@@ -93,7 +96,7 @@ There are no `--log-level` / `--log-style` CLI flags, no `ANTFLY_LOG_*` environm
 
 ## Docker Compose Observability Stack
 
-`devops/docker-compose` bundles Prometheus (`9090`) and Grafana (`3000`) alongside Antfly. Prometheus scrapes `antfly:4200` every 15s; Grafana datasources and dashboards are provisioned from `devops/docker-compose/grafana/`.
+`devops/docker-compose` bundles Prometheus (`9090`) and Grafana (`3000`) alongside Antfly, all published on host `127.0.0.1`. Prometheus mounts the shared `devops/prometheus.yml` and scrapes `antfly:4200` every 15s (the Antfly service runs with `--host 0.0.0.0`, so the scrape reaches it); Grafana datasources and dashboards are provisioned from `devops/docker-compose/grafana/`. The compose healthcheck polls `/healthz`, not `/readyz`.
 
 ```bash
 cd devops/docker-compose && docker compose up -d
@@ -107,4 +110,6 @@ cd devops/docker-compose && docker compose up -d
 - `--health false` takes down the dedicated health server, so `/metrics` disappears entirely; `/healthz` and `/readyz` remain on the API port
 - `/metrics` responses are cached for ~5s, so scrape intervals below that gain nothing
 - Prometheus format only — no OTel export path exists
+- Do not use `/readyz/sql` as a probe on `standalone`, `metadata`, or `data`: it never turns ready there
+- Dashboards and alerts keyed on `antfly_ha_*` keep working only through the deprecation window — move them to `antfly_standby_*`
 - Set `log.style` to `json` explicitly for structured logs in Kubernetes; nothing detects the environment for you

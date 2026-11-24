@@ -15,6 +15,9 @@ Body fields:
 - `index_sort` is an array of `{"field": "...", "order": "asc" | "desc"}`, or `{"field": "...", "desc": true}` — `order` and `desc` on the same entry are rejected, as is an empty array
 - `version` is backend-managed and read-only; omit it from create and update requests
 - `replication_sources` — Postgres CDC sources (see [integrations.md](integrations.md))
+- `storage_mode` — `document` (default) or `relational`: schema-bound typed rows; requires exactly one closed document schema with declared properties and implies `enforce_types` (setting it `false` is invalid). JSON document reads and writes keep working
+- `replica_identity` — `default` (primary key) or `full` (complete old row) for PostgreSQL logical replication of native relational tables
+- `base_source` — an external Parquet or Iceberg source (`kind: external`, `table_id`, `format`, `uri`). Requires `relational`; ordinary row writes are rejected (see the lake row in [index.md](index.md#capabilities-not-yet-covered-in-depth))
 
 `document_schemas` and `default_type` are **nested under `schema`**, not top-level.
 
@@ -41,11 +44,28 @@ The validator accepts exactly these names, and **rejects anything else** (`Inval
 | `blob` | Accepted, but the compiler emits no mapping — inert |
 | `link` | Reference/link to another document |
 | `search_as_you_type` | Autocomplete/prefix matching |
+| `substring` | Infix ("contains") matching via a `field._substring` companion — see below |
 | `string`, `object`, `array`, `null` | Plain JSON Schema type names, accepted here too |
 
 `geopoint`, `geoshape`, and `embedding` are **not** valid `x-antfly-types` values. They are `x-antfly-field` mapping types — declare them there (see below).
 
 A field can carry multiple types: `"x-antfly-types": ["text", "keyword"]` indexes the analyzed text at the field path and an exact variant at `field.keyword`.
+
+### `substring` — contains matching
+
+`"x-antfly-types": ["text", "substring"]` (or `["keyword", "substring"]`, which auto-adds `text`)
+creates `field._substring`, which indexes every 2–32-byte suffix of each lowercased token and of each
+adjacent token pair joined without a separator. Query the companion, not the field:
+
+```json
+{ "match": "g3we", "field": "sku._substring" }
+```
+
+That finds `RAG3-WEAVER`, `rag3_weaver`, and `rag3weaver`. `match`, `match_phrase`, and `prefix` all
+work on the companion; queries are lowercased, a query of three or more tokens must match every adjacent
+pair, single-character queries never match, and a token or pair over 32 bytes is rejected. Highlighting
+on `field._substring` marks the exact contained bytes, even across two adjacent words. The companion costs
+several times the size of the text it indexes, so opt in per field (identifiers, SKUs, paths, code).
 
 ### `x-antfly-field` (object)
 
@@ -79,7 +99,7 @@ Analyzer name for the primary text field. Builtins: `standard` (alias `default`)
 
 ### `x-antfly-include-in-all` (array)
 
-Named on the **object**, listing which of its own properties join the default `_all` search field. Only text-based mappings participate: `text`, `html`, `keyword`, `search_as_you_type`, and `link`. Numeric, boolean, datetime, geo, embedding, and blob fields are never in `_all`.
+Named on the **object**, listing which of its own properties join the default `_all` search field. Only text-based mappings participate: `text`, `html`, `keyword`, `search_as_you_type`, `substring`, and `link` — and only the primary field, never `.keyword`, `._2gram`, `._substring`, or other companions. Numeric, boolean, datetime, geo, embedding, and blob fields are never in `_all`.
 
 A bare boolean (`"x-antfly-include-in-all": true`) passes validation but is **silently ignored** — only the array form is consumed.
 

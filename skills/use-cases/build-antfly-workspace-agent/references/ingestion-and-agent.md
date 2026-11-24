@@ -20,7 +20,7 @@ or hybrid search. Ingestion success is separate from successful retrieval.
 
 ## MCP boundary
 
-Discover the exact hosted MCP URL and current tool schemas. Initialize Streamable HTTP,
+Discover the exact MCP URL (Cloud or self-hosted) and current tool schemas. Initialize Streamable HTTP,
 list tools and execute one known query and source read. Keep ingestion/admin credentials
 separate from runtime read-only credentials. Setup tools may inspect table/index capabilities;
 normal model use exposes only bounded search and document lookup, commonly `query` and
@@ -28,8 +28,18 @@ normal model use exposes only bounded search and document lookup, commonly `quer
 
 Enforce table, account and original-source access outside model arguments. A raw instance-wide
 query tool is unsuitable when it would expose other users' evidence or revoked sources.
-Use a trusted tool adapter or authorized MCP gateway when source checks are not native to
-the endpoint. Apply that same boundary to graph expansion and citation reads.
+
+Self-hosted Antfly can enforce per-caller scope natively. A trusted gateway signs an HS256 JWT
+in `X-Antfly-Trusted-Principal` (requires the `antfly.trusted_principal.secret`, and the issuer
+when configured) carrying the caller's `tables`, `operations`, `row_filter` and `metadata`;
+row filters reference identity with `$auth` (for example
+`{"term": {"tenant_id": {"$auth": "metadata.tenant_id"}}}`). User, role, group and key filters
+combine with AND, permissions are rechecked on every MCP tool call, and an MCP session cannot
+retain an earlier request's broader permissions. Strip any client-supplied principal header at
+the gateway. Row filters can encode account/ACL scope only if ingestion stored those fields;
+live revocation in the source system still needs a recheck or a resync. Use a trusted tool
+adapter when the required check cannot be expressed as a row filter. Apply the same boundary to
+graph expansion and citation reads. See `references/backend/auth.md`.
 
 The chosen runtime consumes this retrieval contract:
 

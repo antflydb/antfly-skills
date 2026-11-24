@@ -63,13 +63,24 @@ configuration details.
 
 ## Object Storage Engine
 
-Object storage is a **storage engine** (`storage.engine: "object"`), available in `serverless`
-deployment mode — not a per-table override. Serving state is generation-scoped: workers read
-immutable published generations, with `artifacts`, `manifests`, `wal`, `progress`, and `catalog`
-lanes in the object store.
+Object storage shows up at two levels:
 
-The directory-backed `local` engine and single-file `lite` engine do not accept object-store fields.
-Per `docs/s3-storage.md`, changing engines is an explicit backup/restore migration.
+- **Per table**: `CreateTableRequest.storage.engine` (`TableStorageSettings`) is `local` (default) or
+  `object`, independent of deployment mode. An `object` table uses external lake data with durable
+  sidecars, or an Antfly-owned object WAL and published generations; it allocates **no data Raft
+  groups**, so `num_shards` and `replication_sources` must be omitted (rejected otherwise), and
+  `dense_embeddings` must stay `primary_lsm`. The shared destination comes from `storage.artifacts` in
+  the server config. Writable object document tables initially need immutable schema and index
+  definitions — changes mean a new table and an explicit migration. The engine is immutable per table.
+- **Per server**: the server config's `storage.engine: "object"` (below), used by `serverless`
+  deployments. Serving state is generation-scoped: workers read immutable published generations, with
+  `artifacts`, `manifests`, `wal`, `progress`, and `catalog` lanes in the object store. The
+  directory-backed `local` engine and single-file `lite` engine do not accept object-store fields; per
+  `docs/s3-storage.md`, changing a server's engine is an explicit backup/restore migration.
+
+`storage.dense_embeddings` (`primary_lsm` | `vector_store`) is the other `TableStorageSettings` field:
+omitting `storage` selects `vector_store` for a local single-shard, unreplicated standalone table and
+`primary_lsm` everywhere else.
 
 **Protocols**: the object storage engine accepts **only** `protocol: "s3"` — `validateStorageConnection`
 rejects a connection with any other protocol. A `gcs` `external_io` connection exists and serves other

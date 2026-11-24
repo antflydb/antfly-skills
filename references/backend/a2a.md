@@ -34,12 +34,13 @@ For most users the stable, spec'd RAG surface is the REST endpoint **`POST {{ANT
   "defaultOutputModes": ["text", "data"],
   "skills": [
     { "id": "query-builder", "name": "Query Builder", "description": "Translate natural language into Antfly query requests", "tags": ["antfly", "query"], "inputModes": ["text", "data"], "outputModes": ["text", "data"] },
-    { "id": "retrieval", "name": "Retrieval", "description": "Run Antfly retrieval and generation workflows", "tags": ["antfly", "retrieval"], "inputModes": ["text", "data"], "outputModes": ["text", "data"] }
+    { "id": "retrieval", "name": "Retrieval", "description": "Run Antfly retrieval and generation workflows", "tags": ["antfly", "retrieval"], "inputModes": ["text", "data"], "outputModes": ["text", "data"] },
+    { "id": "research", "name": "Research", "description": "Plan, research in parallel and write a cited report over Antfly tables and the web", "tags": ["antfly", "research"], "inputModes": ["text", "data"], "outputModes": ["text", "data"] }
   ]
 }
 ```
 
-`skills` is an **array of objects**, not an array of strings. Skill selection is by `id`, read from `message.metadata.skill` first and then `params.metadata.skill`. If neither names a registered skill the dispatcher falls back to the single registered handler — but Antfly registers two, so an unnamed skill resolves to nothing. Always send the skill id.
+`skills` is an **array of objects**, not an array of strings. Skill selection is by `id`, read from `message.metadata.skill` first and then `params.metadata.skill`. If neither names a registered skill the dispatcher falls back to the single registered handler — but Antfly registers three, so an unnamed skill resolves to nothing. Always send the skill id.
 
 ## JSON-RPC Methods
 
@@ -59,7 +60,7 @@ Runs Antfly retrieval and generation workflows.
 
 **Modes**:
 - **Pipeline** (default) — single-pass retrieval + generation
-- **Agentic** — enabled when `max_internal_iterations > 0`; an iterative planner (deterministic) drives query refinement, strategy switching, and clarification. The planner is a rule function over attempt scores, not an LLM choosing tools
+- **Agentic** — enabled when `max_internal_iterations > 0`. With a generator in `steps.generation`, an LLM tool loop (`build_query`, `search`) drives retrieval; without one, a deterministic planner (a rule function over attempt scores) drives refinement, strategy switching, and clarification. The adapter does not forward a top-level `generator`, so over A2A the generator must sit on `steps.generation`
 
 **Input**: message text (becomes the query) plus a data part that is **effectively required**:
 
@@ -68,10 +69,11 @@ Runs Antfly retrieval and generation workflows.
 | `table` | Table to search; builds a default full-text query from the message text |
 | `limit` | Result limit for the `table`-derived default query only (default 5); ignored when you supply `queries` |
 | `queries` | Explicit retrieval queries; takes precedence over `table` |
-| `steps` | Explicit pipeline steps |
+| `steps` | Explicit pipeline steps (put the generator on `steps.generation`) |
 | `max_internal_iterations` | > 0 switches to agentic mode |
 
-The adapter only forwards `queries[]` when the data part supplies `queries` or `table`. With
+The adapter always sends `stream: false` and forwards only `queries`/`table`, `limit`, `steps`, and
+`max_internal_iterations`. It only forwards `queries[]` when the data part supplies `queries` or `table`. With
 neither, the retrieval request goes out with no `queries` key at all, which the retrieval agent
 rejects as an invalid request — the task ends `failed` with "invalid retrieval agent request". Send
 one or the other on every call.
@@ -79,6 +81,20 @@ one or the other on every call.
 **Output**: streamed A2A artifact updates. Each retrieval event becomes an artifact **named after the event**; the `done` event becomes the artifact named `result`. The artifact payload is not the raw event — it is wrapped as `{"event": "<event name>", "data": <event payload>}`, so `result` carries the `RetrievalAgentResult` under `data`.
 
 **Status states**: emits `working` at start. The terminal state is the `done` payload's `status` field verbatim, defaulting to `completed` when the payload carries no status — in practice `completed`, `clarification_required`, or `incomplete`, the three the retrieval agent produces. `failed` comes from the adapter's error branch instead (an `error` event, or a rejected/unauthorized request), and `in_progress` is never emitted.
+
+### `research` — Cited Research Report
+
+Plans sub-questions, researches them in parallel over Antfly tables (and the web, when tools allow),
+and writes a cited report — the A2A face of `POST /db/v1/agents/research`.
+
+**Input**: message text (becomes the query) plus an optional data part. `queries` is forwarded as
+given; otherwise a `table` becomes a bare `{table}` query entry. `generator`, `chain`, `steps`,
+`budget`, `tools`, `agent_knowledge`, and `research_state` are forwarded unchanged. The adapter forces
+`stream: true` and `interactive: false` — the run never pauses for clarification.
+
+**Output**: same framing as `retrieval` — artifacts named per event, `done` → `result`, payloads
+wrapped as `{event, data}`; terminal state is the `done` payload's `status`. A `research_state` that
+was modified or issued by another server fails the task.
 
 ### `query-builder` — Natural Language to QueryRequest
 
@@ -99,6 +115,7 @@ Translates natural language intent into an Antfly `QueryRequest`.
 | Any query, simple through hybrid | MCP (`query`) |
 | RAG with streaming answers | REST `POST /db/v1/agents/retrieval` (stable) |
 | RAG inside an A2A agent mesh | A2A `retrieval` (experimental + admin) |
+| Cited multi-step research report | REST `POST /db/v1/agents/research` (or `/research/jobs` for durable runs), or A2A `research` |
 | Natural language → QueryRequest | REST `POST /db/v1/agents/query-builder`, MCP `describe_query_request` + `query`, or A2A `query-builder` |
 | Multi-turn clarification loops | A2A `retrieval` in agentic mode |
 
@@ -109,5 +126,5 @@ Translates natural language intent into an Antfly `QueryRequest`.
 3. **The card is at `/.well-known/agent-card.json`**, not `agent.json`. The older path returns 404 even with `--experimental` on.
 4. **`skills` is an array of objects** — parse `skill.id`, don't treat the entries as strings.
 5. **`tasks/cancel` marks, it doesn't interrupt** — the task is recorded as canceled in the task store, but in-flight synchronous work is not aborted.
-6. **Agentic mode does not need a generator** — `max_internal_iterations > 0` is gated only by the tool policy: the request is rejected if no declared query is allowed by it. Generation remains separately opt-in via `steps.generation`.
+6. **Agentic mode does not need a generator** — without one it runs the deterministic planner; with `steps.generation` it becomes an LLM tool loop. Either way the request is rejected if no declared query is allowed by the tool policy.
 7. **Streaming is A2A event framing**, not the REST retrieval SSE shape — artifact-update and status-update events, not raw retrieval events.

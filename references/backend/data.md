@@ -64,15 +64,18 @@ Operators:
 
 ### Response
 
-`BatchResponse` is `{ status, inserted, deleted, transformed }`. `status` is one of:
+`BatchResponse` is `{ status, inserted, deleted, transformed }`, plus an optional `failure`
+(`{ code, message, reason?, retryable }`) on a committed batch that needs operator action. `status` is one of:
 
 | Status | Meaning |
 |--------|---------|
 | `committed` | Durable and visible |
 | `committed_pending` | Committed; requested visibility or participant propagation still completing |
-| `committed_repair_required` | Primary write committed, but a terminal enrichment failure needs operator repair |
+| `committed_repair_required` | Primary write committed, but a terminal enrichment failure needs operator repair — inspect `failure`; do not replay the write |
 
-There is no `failed` count — a batch either commits or errors.
+There is no `failed` count — a batch either commits or errors. **Check write status before retrying:**
+a missing response does not prove the write failed, and a `committed_*` status means the write is
+durable — resubmitting it is never the fix.
 
 **Batches are atomic.** Within a shard, operations commit atomically; when a batch spans shards, Antfly runs distributed 2PC, so all writes succeed or none do.
 
@@ -150,19 +153,41 @@ If any version has changed, the commit is aborted with 409 and a `conflict` obje
 
 Commit response `status` is one of `committed`, `committed_visibility_pending`, `committed_recovery_pending`, `committed_repair_required`, `aborted`.
 
+| Response | Meaning | Action |
+|----------|---------|--------|
+| 200 `committed` | Commit and requested barrier done | Consume the result |
+| 202 `committed_visibility_pending` / `committed_recovery_pending` | Commit decision durable; visibility or participant resolution pending | Observe/reconcile; do not resubmit |
+| 202 `committed_repair_required` | Commit durable; derived work (index/enrichment) needs operator repair | Repair, then observe; do not replay |
+| 409 `aborted` + `conflict` | Did not commit | Refresh the read set, recompute, retry |
+| 409 `code: "transaction_outcome_unknown"`, `retryable: false` | May already have committed | **Do not replay**, even under a new ID; keep `transaction_id` and follow `recovery` |
+
+For client-retryable commits use an explicit session (`begin` … `{id}/commit`) and retry or reconcile
+that same ID; `GET /db/v1/transactions/{id}` reads its state while the session is retained. The
+stateless `/transactions/commit` cannot offer that contract. Source: upstream
+`docs/reference/transaction-outcomes.mdx`.
+
 ## Sync Levels
 
-Controls how much work completes before the write returns:
+`sync_level` is the acknowledgment barrier — how much work completes before the write returns:
 
 | Level | Waits for | Speed | Use when |
 |-------|-----------|-------|----------|
-| `propose` | Raft proposal | Fastest | Fire-and-forget writes |
-| `write` | Local KV/LSM write | Fast | Need durability |
-| `full_text` | Full-text index WAL | Medium | Need immediate full-text search |
-| `enrichments` | Pre-computed enrichments | Slow | Need enrichments before commit |
-| `full_index` | All index writes, vectors included | Slowest | Need immediate vector search |
+| `propose` | Raft proposal acceptance | Fastest | Fire-and-forget writes |
+| `write` | Durable application to the local KV store | Fast | Need durability |
+| `query` | Durable application + full-text query visibility | Medium | Need immediate full-text search |
+| `full_text` | Compatibility alias for `query` | | |
+| `enrichments` | This write's enrichment publication | Slow | Need enrichments visible |
+| `full_index` | Full-text, enrichment, and vector-index publication | Slowest | Need immediate vector search |
 
-Batch default is `propose`; merge default is `write`.
+Batch default is `propose`; merge default is `write`. A post-commit wait failure never rolls back the
+write.
+
+`commit_requires` (`none` | `direct_enrichments`) is a separate **admission** prerequisite.
+`direct_enrichments` runs eligible document-local enrichment producers before commit and commits their
+outputs atomically with the source — a producer failure rejects the whole batch (budget: 8 MiB and
+16,384 rows for the complete mutation). Explicit `none` commits without precomputing. When omitted,
+embedded `enrichments`/`full_index` writes keep the legacy precompute behavior during the migration
+window. MCP `batch` exposes both as `syncLevel` and `commitRequires`.
 
 ## Sharp Edges
 

@@ -9,7 +9,7 @@ Retain enough metadata to trace and refresh every document:
 - source and public citation URLs;
 - content type;
 - source modification or commit time;
-- connector run identifier;
+- ingestion run identifier;
 - extraction status and error class.
 
 Use the repository-relative path as part of the stable document key. Do not use

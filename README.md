@@ -20,8 +20,9 @@ grounded support experience.
 The experimental [Google Workspace Agent Guide](guides/workspace-agent/guide.md) covers
 Workspace setup, ingestion into Antfly and an MCP connection to the chosen agent runtime.
 Drive, Gmail, Meet and Calendar are source options. Graph enrichment is optional and has
-its own readiness checks. The current pilot covers selected Gmail/Drive/Meet snapshots;
-Calendar and continuous sync are not yet implemented.
+its own readiness checks. An earlier pilot covered selected Gmail/Drive/Meet snapshots;
+Antfly Cloud's hosted Workspace connection (Drive, Gmail, Calendar with incremental sync)
+is pre-release and not yet qualified live.
 
 The experimental [Google Agent Guide](guides/google-agent/guide.md) covers Google ADK,
 Gemini on Vertex AI, Antfly MCP retrieval and optional private Cloud Run deployment.

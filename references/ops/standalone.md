@@ -38,7 +38,7 @@ In-process inference is served on the API port — there is no separate inferenc
 
 A third listener is opt-in: `{"pgwire": {"enabled": true}}` starts a PostgreSQL wire listener on `127.0.0.1:5432` (`bind_host`, `bind_port`, `max_connections` default 32). It refuses to start without authentication (built-in `enable_auth` or a trusted-principal verifier) and has no TLS, so a non-loopback `bind_host` additionally requires `externally_protected_transport: true` with a TLS proxy or private transport in front.
 
-`12380` (data API), `9017` (metadata raft), and `9021` (data raft) were the Kubernetes operator's distributed-mode defaults (as of `ab8d9fc119`; the operator now lives in Colony), not runtime defaults. Started by hand, `antfly data` defaults `--api-port` and `--raft-port` to `0` — an OS-assigned ephemeral port — and `antfly metadata` does the same unless the port for its node id can be read out of `metadata.raft_urls` / `metadata.orchestration_urls` in a config file. Standalone binds none of them.
+`12380` (data API), `9017` (metadata raft), and `9021` (data raft) are conventional distributed-mode ports used in examples, not runtime defaults. Started by hand, `antfly data` defaults `--api-port` and `--raft-port` to `0` — an OS-assigned ephemeral port — and `antfly metadata` does the same unless the port for its node id can be read out of `metadata.raft_urls` / `metadata.orchestration_urls` in a config file. Standalone binds none of them.
 
 A separate inference server (`antfly inference run`) defaults to `127.0.0.1:8090` (`--host` / `--port`).
 

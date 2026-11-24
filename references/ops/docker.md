@@ -10,11 +10,10 @@ The same image is also published to Google Artifact Registry. Semantic-version t
 - Signed with Sigstore/cosign (keyless OIDC via GitHub Actions)
 - `ENTRYPOINT ["/antfly"]`, `CMD ["standalone"]`
 - Base `debian:bookworm-slim`; the binary is the glibc (`_gnu`) build with CUDA runtime libraries (cuBLASLt, cuDNN, cudart, NVRTC) bundled — GPUs still need the host driver
-- `EXPOSE 8080 11433 4200`. Nothing in the Antfly runtime binds 11433 by default; it was the operator's external inference-pool port convention, and the operator now lives in Colony
+- `EXPOSE 8080 11433 4200`. Nothing in the Antfly runtime binds 11433 by default
 - Runs as user `antfly` (UID/GID `10001`, home `/home/antfly`); `/antflydb` is pre-created and owned by `10001:10001`
 - `HEALTHCHECK` polls `http://localhost:4200/readyz`
 
-The Kubernetes operator is no longer built from the Antfly repo (moved to Colony).
 
 ## Quick Start
 

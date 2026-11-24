@@ -115,30 +115,9 @@ References also resolve in foreign-source and CDC DSNs sent in API request bodie
 
 Distributed metadata and data processes require `antfly.internal_service.secret` (at least 32 random bytes) and `antfly.internal_service.issuer` provisioned identically on every node. Startup fails before opening the listener when either is missing or invalid, and the secret may not equal the trusted-principal secret.
 
-## Kubernetes
+## Mounted Secret Files
 
-Mount a read-only `secrets.json` (owned by the service account, mode `0600`) and list it under `secrets.sources` (or point `--secret-store-path` at it). Rotation replaces the file atomically rather than rewriting it in place.
-
-> **Unverified:** the Kubernetes operator moved out of the Antfly repo to Colony (Antfly commit `871c143788`). The CRD fields below reflect the operator as of Antfly `ab8d9fc119` and have not been re-checked against current Colony.
-
-The operator references Secrets by name only — it never reads their values:
-
-```yaml
-apiVersion: antfly.io/v1
-kind: AntflyCluster
-spec:
-  secretStore:
-    secretName: antfly-secret-store   # required; a Secret in this namespace
-    key: secrets.json                 # optional, defaults to secrets.json
-    path: /run/antfly/secrets/secrets.json   # optional, this is the default
-  internalServiceAuth:
-    secretKeyRef:
-      name: antflydb-internal-service-auth
-      key: secret
-      optional: false
-```
-
-Treat each internal-service Secret as immutable; rotate with versioned Secrets via `nextSecretKeyRef` and wait for `status.internalServiceAuthRotation.phase: Switched` before promoting.
+In containers, mount a read-only `secrets.json` (owned by the runtime user, mode `0600`) and list it under `secrets.sources` (or point `--secret-store-path` at it). Rotation replaces the file atomically rather than rewriting it in place.
 
 ## Sharp Edges
 

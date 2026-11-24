@@ -118,5 +118,4 @@ References also resolve in foreign-source and CDC DSNs supplied in API request b
 - Pre-0.3 configs carrying `admission`, `graph_execution`, flat inference keys, or `inference.keep_alive_ms` now fail to load — migrate them per the table above
 - `cors` with no `allowed_origins` grants no cross-origin access; it is not a wildcard
 - Setting `inference.api_url` disables embedded inference in standalone (no in-process provider and no `/ai/v1` on its port) — it is not a fallback
-- The Kubernetes operator now lives in Colony, outside the Antfly repo; operator-specific claims in `kubernetes.md` are unverified against it
 - Standalone lowers `default_shards_per_table` to 1 — see `standalone.md`

@@ -134,7 +134,6 @@ Current React surface:
 
 Read:
 - `references/ops/standalone.md` for local single-node setup
-- `references/ops/kubernetes.md` for production deployment
 - `references/ops/docker.md` for Docker / compose
 - `references/ops/storage.md` for storage backends
 - `references/ops/secrets.md` for credentials and the secret store
@@ -149,9 +148,10 @@ Defaults:
   `antfly standalone` (HTTP, MCP, A2A, opt-in pgwire); add `antfly standby` for a hot standby
 - managed hosting:
   Antfly Cloud
-- The Kubernetes operator and hosted tooling moved out of the Antfly repo (to
-  Colony); serverless over object storage is still in development. Do not
-  assume either unless the user's deployment already uses it.
+- Kubernetes operator deployment is out of scope for this library (the
+  operator lives outside the Antfly repo); serverless over object storage is
+  still in development. Do not assume either unless the user's deployment
+  already uses it.
 
 ## Critical Antfly Sharp Edges
 

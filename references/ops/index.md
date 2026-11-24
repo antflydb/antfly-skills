@@ -4,7 +4,7 @@
 
 - **Standalone** — one process owns metadata, data, the APIs, and in-process inference. Development, demos, single-node production.
 - **Lite** — one `.aflite` file opened in-process (`libantfly`, `antfly lite`), or served over HTTP with `antfly standalone --storage-engine lite`.
-- **Distributed** — separate `antfly metadata` and `antfly data` processes with Raft coordination. The Kubernetes operator that manages it moved to Colony (outside the Antfly repo) in the 0.3 line.
+- **Distributed** — separate `antfly metadata` and `antfly data` processes with Raft coordination. This corpus covers the runtime processes only; Kubernetes operator deployment is out of scope.
 - **Serverless** — stateless workers over object storage (`storage.engine: object`). Still **unreleased / in development** upstream (control-plane auth/quota and job tracking open); see `storage.md`.
 
 `antfly standalone` is the canonical command. `antfly swarm` is a deprecated legacy alias for the same route; use `standalone` everywhere.
@@ -17,8 +17,6 @@
   Read `standalone.md` (Hot Standby)
 - Auth bootstrap, backups, upgrades, install methods:
   Read `standalone.md`
-- Production cluster deployment on Kubernetes:
-  Read `kubernetes.md` (operator now in Colony; content unverified)
 - Docker or compose-based setup:
   Read `docker.md`
 - Object storage, local disk, or Lite:
@@ -38,8 +36,8 @@
   Assume `antfly standalone`
 - If the task sounds like HA for one server:
   Assume `antfly standalone` plus a hot standby (`antfly standby`)
-- If the task sounds like multi-node scale-out or autoscaling on Kubernetes:
-  Distributed mode, operated by Colony's operator — verify operator details against Colony, not this corpus
+- If the task sounds like multi-node scale-out:
+  Distributed mode (`antfly metadata` + `antfly data`); Kubernetes operator deployment is out of scope for this corpus
 
 ## Standalone (Dev / Single-Node)
 
@@ -66,7 +64,7 @@ Standalone defaults: `default_shards_per_table = 1`, `disable_shard_alloc = true
 ## Distributed (Production)
 
 ```bash
-# Metadata node (the odd-replica rule was an operator webhook check, not a runtime one)
+# Metadata node
 antfly metadata --id 1 --raft-host 0.0.0.0 --raft-port 9017 \
   --api-host 0.0.0.0 --api-port 12377 \
   --cluster '{"1":{"raft_url":"http://node1:9017","orchestration_url":"http://node1:12377"}}'
@@ -78,12 +76,11 @@ antfly data --node-id 1 --store-id 1 \
   --metadata-api http://node1:12377
 ```
 
-Metadata node count should be odd for Raft quorum — 1, 3, or 5 are the practical choices. The raw `antfly metadata` runtime validates no replica parity at all, so a hand-rolled two-node cluster starts; the odd-count check lived in the operator's admission webhook (as of `ab8d9fc119`, before the operator moved to Colony). Data nodes scale horizontally. Distributed nodes require `antfly.internal_service.secret`/`.issuer` — see `secrets.md`.
+Metadata node count should be odd for Raft quorum — 1, 3, or 5 are the practical choices. The `antfly metadata` runtime validates no replica parity at all, so a two-node cluster starts. Data nodes scale horizontally. Distributed nodes require `antfly.internal_service.secret`/`.issuer` — see `secrets.md`.
 
 ## Skill Modules
 
 - [standalone.md](standalone.md) — standalone flags, defaults, auth bootstrap, hot standby, Lite, backups/upgrades, install, CLI agent mode
-- [kubernetes.md](kubernetes.md) — K8s operator, CRDs, cloud platforms, autoscaling (operator now in Colony; unverified)
 - [docker.md](docker.md) — Docker image, docker-compose setups
 - [storage.md](storage.md) — lite / local / object engines
 - [secrets.md](secrets.md) — secret store, credential management
@@ -93,7 +90,7 @@ Metadata node count should be odd for Raft quorum — 1, 3, or 5 are the practic
 
 ## Critical Sharp Edges
 
-1. Metadata replicas should be **odd** — even counts risk split-brain. The raw `antfly metadata` runtime enforces nothing; parity (and immutability of `spec.metadataNodes.replicas`) were operator webhook rules as of `ab8d9fc119` — confirm against Colony
+1. Metadata replicas should be **odd** — even counts risk split-brain. The `antfly metadata` runtime enforces nothing
 2. Auth-enabled instances still on legacy `admin:admin` refuse to start until `ANTFLY_BOOTSTRAP_ADMIN_PASSWORD` is set; keep published ports on `127.0.0.1` until auth and TLS (at a proxy) are in place
 3. `disable_shard_alloc` defaults to `true` — automatic shard splitting is off unless you set it to `false`
 4. `replication_factor` schema default is 3 (min 1, max 5) — set it to 1 explicitly for single-node dev

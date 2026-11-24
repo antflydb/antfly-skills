@@ -131,43 +131,9 @@ Config key for a remote inference endpoint (this turns embedded inference off �
 { "inference": { "api_url": "http://127.0.0.1:8090" } }
 ```
 
-## Kubernetes — InferencePool
-
-> **Unverified:** `InferencePool` is a Kubernetes operator CRD, and the operator moved to Colony (Antfly commit `871c143788`). The spec below reflects the operator as of Antfly `ab8d9fc119`. What the Antfly repo still documents: Colony's operator emits the canonical nested runtime config for every pool, so pools and the operator must be upgraded together to a compatible runtime.
-
-```yaml
-apiVersion: antfly.io/v1alpha1
-kind: InferencePool
-metadata:
-  name: embedders
-spec:
-  workloadType: read-heavy        # read-heavy | write-heavy | burst | general
-  image: ghcr.io/antflydb/antfly:latest
-  models:
-    preload:
-      - name: BAAI/bge-small-en-v1.5:i8
-        tasks: ["embed"]
-        priority: high            # high | medium | low
-    loadingStrategy: eager        # eager | lazy | bounded
-  replicas:
-    min: 2
-    max: 8
-  hardware:
-    accelerator: tpu-v5-lite-podslice
-    spot: false
-  autoscaling:
-    enabled: true
-    metrics:
-      - type: latency-p99         # queue-depth | latency-p99 | latency-p95 |
-                                  # requests-per-second | cpu | memory | throughput
-        target: "100ms"
-```
-
-`spec.image` must provide the `/antfly inference ...` runtime contract; accelerator backends are selected from `spec.hardware`. Whatever `spec.config` carries must use the current runtime shape — model settings nested under `inference` (`prompt_cache`, `kernel_jit`, `keep_alive` as a duration string, `max_loaded_models`, `preload`) and limits under `resources.inference` (`admission`, `memory`, `request_limits`). The runtime rejects the old flat keys and `keep_alive_ms`; there is no legacy fallback. For eager preloads, give each model a recognized task (`tasks: [embed]`, `tasks: [generate]`) or an explicit `kind`.
-
 ## Sharp Edges
 
-- First request against a model is slow unless `loadingStrategy: eager` preloads it
+- First request against a model is slow unless it is preloaded (`--preload-model`)
 - `antfly inference list` errors on any flag other than `--models-dir`, including `--help`
 - `antfly inference run --host 0.0.0.0` refuses to start without `--allow-insecure-public-bind`
 - Standalone `/ai/v1` is 403 until `public_inference.enabled: true`

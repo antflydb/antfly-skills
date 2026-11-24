@@ -53,7 +53,7 @@ const forbidden = [
   { pattern: /\/keys\/\{key\}/, message: "key lookup is /db/v1/tables/{tableName}/documents/{key}" },
   { pattern: /ANTFLY_KEYSTORE|antfly\s+keystore\b|keystore password/i, message: "there is no keystore — the secret store is a JSON file via --secret-store-path" },
   { pattern: /antfly:omni|:omni\b/, message: "no :omni image tag is published" },
-  { pattern: /\bTermitePool\b/, message: "the CRD kind is InferencePool" },
+  { pattern: /\bTermitePool\b|\bInferencePool\b|\bAntflyCluster\b|\bAntflyBackup\b|kubernetes\.md/, message: "Kubernetes operator deployment is out of scope for this library" },
   { pattern: /\bconjuncts\(|\bdisjuncts\(|\{\s*conjuncts\b|\{\s*disjuncts\b/, message: "SDK helpers are conjunction()/disjunction() (raw query JSON keys conjuncts/disjuncts are fine — this flags the JS helpers)" },
   { pattern: /\bonAnswer\b|\bonFollowUpQuestion\b/, message: "streaming callbacks are onGeneration / onFollowup" },
   { pattern: /--termite\b|--log-level\b|--log-style\b|--keystore-path\b/, message: "flag does not exist on any Antfly runtime" },

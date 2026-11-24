@@ -14,6 +14,8 @@ A custom UI and specialized workflows are applications of this pattern, not prer
 1. Discover existing authorization and select the account, sources, date range and folders,
    labels or calendars. Read `references/workspace-sources.md` for source-specific setup.
    Preserve already authorized scope; do not assume every Workspace service is connected.
+   Antfly Cloud's hosted Workspace connection (Drive, Gmail, Calendar; no Meet) is
+   pre-release; check its status on the target instance before choosing it.
 2. Read actual content, normalize it and ingest into Antfly. Read
    `references/ingestion-and-agent.md` for records, synchronization and the MCP boundary.
 3. Verify indexed passages and source lookups. Start with working full-text retrieval;
@@ -30,7 +32,9 @@ A custom UI and specialized workflows are applications of this pattern, not prer
 
 Enforce source access before retrieved text, metadata or graph-derived facts reach the model.
 MCP connection authentication and a read-only Antfly key do not enforce Workspace ACLs by
-themselves. Use a caller-scoped gateway or trusted adapter where the server lacks that boundary.
+themselves. The native option is per-caller scope: trusted-principal tokens with `$auth` row
+filters over ingested access fields (see `references/ingestion-and-agent.md`). Use a trusted
+adapter for checks a row filter cannot express.
 Recheck access when opening citations. Deny revoked, deleted, stale or unverifiable sources.
 
 Ground factual answers in retrieved passages and link original sources with timestamps or

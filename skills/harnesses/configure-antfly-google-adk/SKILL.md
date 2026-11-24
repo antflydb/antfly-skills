@@ -19,8 +19,9 @@ dataset. Workspace, BigQuery and other sources use separate ingestion procedures
 3. Compose `connect-antfly-mcp` when available. Initialize the exact MCP endpoint, discover
    schemas and test a known query and source lookup with a dedicated read-only credential.
 4. Expose bounded retrieval through a trusted ADK tool adapter. Construct table and mandatory
-   scope filters outside model arguments. For private corpora, enforce original-source access
-   before returning text or metadata to the model. A tool allowlist alone is insufficient.
+   scope filters outside model arguments, or use Antfly's native trusted-principal row filters
+   for per-caller scope. For private corpora, enforce original-source access before returning
+   text or metadata to the model. A tool allowlist alone is insufficient.
 5. Apply `assets/grounding-instructions.md`. Bound model/tool calls, result sizes and runtime;
    close runners and MCP sessions. Distinguish empty evidence from transport/auth failures.
 6. Exercise an actual agent turn, inspect explanatory passages and citations, then test

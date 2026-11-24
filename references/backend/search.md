@@ -173,7 +173,9 @@ Cross-encoder reranking over the top-N results:
 }
 ```
 
-Providers: only `antfly` (local ONNX inference) executes. `ollama`, `cohere`, and `vertex` are accepted by the schema and pass config validation, but the runtime dispatch has no branch for them — the query runs retrieval and then fails with **HTTP 400** (`invalid query request`). `field` selects the document text to score; `template` renders it instead if you need more than one field.
+Providers: `antfly` (local inference runtime — GGUF, safetensors, or ONNX models; `model` optional), `cloudflare`, `cohere`, and `vertex` all execute. `ollama` is no longer a reranker provider. Remote providers require `model` and their credentials. Candidate caps: 1,000 per request (200 for `vertex`); over the cap the query fails with **HTTP 422** (reranker candidate limit exceeded). `field` selects the document text to score; `template` renders it instead if you need more than one field.
+
+The standalone inference route is `POST /ai/v1/rerank`, which takes `documents` for both text and images (the separate multimodal rerank route is gone); text-only `prompts` is deprecated input.
 
 Reranking runs after retrieval and merge. Best practice: retrieve 50–100 candidates, then rerank down to the final size.
 
@@ -220,7 +222,39 @@ Supports nested paths. **Required** whenever `hierarchy.group_by` or `hierarchy.
 
 An empty `hierarchy: {}` returns direct index matches. `group_by` and `children` are mutually exclusive.
 
-## Graph Searches
+## Graph Queries
+
+`graph_queries` is the canonical graph field: a map of name → operation, each naming its graph `index`
+and exactly one of `match` (pattern match, requires `return`), `traverse`, `shortest_path`, or
+`k_shortest_paths`. Up to 64 operations per request, at most 8 of them `match`. Results are typed per
+operation; `graph_queries` cannot be combined with `expand_strategy`.
+
+```json
+{
+  "graph_queries": {
+    "related": {
+      "index": "facts",
+      "match": {
+        "anchor": "a",
+        "nodes": { "a": { "filter": { "ids": ["alice"] } }, "b": {} },
+        "edges": [{ "from": "a", "to": "b", "types": ["RELATES_TO"] }]
+      },
+      "return": { "aggregates": {
+        "facts": { "count": "*" },
+        "entities": { "count": "b", "distinct": true }
+      } }
+    }
+  }
+}
+```
+
+In a one-hop `match`, `count: "*"` counts relationship matches and a distinct target alias counts
+connected entities. Named graphs (`/db/v1/graphs`) also accept Cypher — the implemented subset — at
+`POST /db/v1/graphs/{graphName}/query`.
+
+### Deprecated: `graph_searches`
+
+Retained only for the v0.2 transition. Sending both `graph_queries` and `graph_searches` is rejected.
 
 `graph_searches` — a map of name → graph query, executed after the full-text/vector phase. Types: `traverse`, `neighbors`, `shortest_path`, `k_shortest_paths`, `pattern`. Start/target nodes come from explicit `keys` or a `result_ref` selector, optionally narrowed by `node_filter`. The recognized selectors are an exact named result-set name, the bare `"$full_text_results"` / `"$fused_results"` / `"$embeddings_results"`, and the suffixed `"$full_text_results.<n>"`, `"$aknn_results.<n>"`, `"$graph_results.<n>"`. To pick a single vector index, use the bare index name or `"$aknn_results.<index>"` — `"$embeddings_results.<index>"` has no resolution branch and fails with `GraphResultRefNotImplemented`. Results land in `graph_results`; `expand_strategy` (`union` or `intersection`) controls how they merge with search hits.
 
@@ -234,7 +268,7 @@ Projection is two-sided. Top-level `fields` projects the **left** table only —
 
 `foreign_sources` — map of table name → external source config (e.g. Postgres). When a table named here appears as the query table or a join's `right_table`, the query is routed to the external database instead of Antfly shards.
 
-Foreign tables support `filter_query`, field selection, `limit`/`offset`, and aggregations (executed against the external source). Full-text search, semantic search, exclusion queries, graph searches, rerankers, analyses, and cursor pagination (`search_after`/`search_before`) are rejected on them.
+Foreign tables support `filter_query`, field selection, `limit`/`offset`, and aggregations (executed against the external source). Full-text search, semantic search, exclusion queries, graph queries, rerankers, analyses, and cursor pagination (`search_after`/`search_before`) are rejected on them.
 
 ## Multi-Query
 

@@ -4,7 +4,12 @@
 
 Antfly inference is the ML engine inside Antfly. It runs embedding, chunking, reranking, extraction, and generation models in the same process as the database, so enrichers and query processors call it without a network hop. External providers plug into the same interface.
 
-In standalone mode it is served on the API port (8080) under `/ai/v1`. Run as a separate process, `antfly inference run` listens on `127.0.0.1:8090` by default.
+In standalone mode it is served on the API port (8080) under `/ai/v1` (and `/ml/v1` for traditional-ML predictors). Public `/ai/v1` execution returns **403** until the config sets `{"public_inference": {"enabled": true}}`; internal indexing and query-time inference need no opt-in.
+
+- A CPU-only build runs models inside the database process. A build with a GPU/driver backend (Metal — on by default on macOS — CUDA, or PJRT) starts a supervised `antfly inference _worker` child and sends **all** embedded inference to it, so a wedged driver call is killed and respawned without taking the database down.
+- Setting `inference.api_url` **disables** embedded inference: standalone keeps no in-process provider, loads no preloads, serves no `/ai/v1` on its own port, and sends every `provider: antfly` call to that URL.
+- Run as a separate process, `antfly inference run` listens on `127.0.0.1:8090` by default and refuses a non-loopback `--host` unless `--allow-insecure-public-bind` is passed (it has no built-in auth or TLS).
+- CUDA requires the `_gnu` (glibc ≥ 2.28) Linux build or the container image; the unsuffixed Linux archives are CPU-only musl builds.
 
 ## CLI
 
@@ -12,7 +17,7 @@ In standalone mode it is served on the API port (8080) under `/ai/v1`. Run as a 
 antfly inference list|pull|run|export|convert|quantize
 ```
 
-(The full subcommand set also includes `embed`, `classify`, `generate`, `chat`, `transcribe`, `read`, `extract`, `compare`, `finetune`, `smoke`, `cuda-info`, `compile-artifact`, `run-artifact`. `cuda-info` dispatches and appears in `--help`, but it is the one subcommand missing from the packaged shell completions.)
+(The full subcommand set also includes `embed`, `classify`, `rerank`, `decisions`, `generate`, `chat`, `transcribe`, `read`, `extract`, `compare`, `finetune`, `smoke`, `cuda-info`, `metal-info`, `bench-cuda`, `compile-artifact`, `run-artifact`, `a4b-pack`, `quant-kernel-codegen`, and `version`; all appear in the packaged shell completions.)
 
 ### Pull
 
@@ -29,7 +34,7 @@ antfly inference pull --variants i8 \
   mixedbread-ai/mxbai-rerank-base-v1
 ```
 
-Models are referenced by full `owner/name`; the `hf:` prefix is accepted. A variant may also be appended to the reference (`BAAI/bge-small-en-v1.5:i8`, `antflydb/clipclap:gguf:Q4_K`).
+Models are referenced by full `owner/name`; the `hf:` prefix is accepted. A variant may also be appended to the reference (`BAAI/bge-small-en-v1.5:i8`, `antflydb/clipclap:gguf:Q4_K`), and a Hub revision with `@` (`BAAI/bge-m3@main`, `BAAI/bge-m3:onnx@<commit>`; default `main`). Each pull resolves the revision to one immutable commit. `--projector` (GGUF sidecar) defaults to `auto`; it also takes `none`, a quant suffix, or a filename.
 
 Other pull options: `--token` (or `HF_TOKEN`), `--tasks`, `--capabilities`, `--projector`, `--models-dir`, `--max-artifact-bytes`, `--max-model-bytes`, `--type`, `--name`, `--ml-dir`, `--file`, `--framework`, `--optimize`, `--dead-leaf-threshold`.
 
@@ -43,15 +48,36 @@ Variants are free-form strings, not a fixed enum. With no `:variant` on the refe
 
 ```bash
 antfly inference list [models-dir]
+antfly inference list --models-dir /models
 ```
 
-Takes an optional models-directory positional, which must be the first argument and must not start with `--`. There is no `--remote` flag.
+Takes the models directory either as one positional or via `--models-dir` (not both, not twice). Any other `--` flag is an `InvalidArguments` error. There is no `--remote` flag.
 
 ### Run
 
 ```bash
-antfly inference run --host 127.0.0.1 --port 8090
+antfly inference run --host 127.0.0.1 --port 8090 --config inference.json \
+  --preload-model embedder:BAAI/bge-small-en-v1.5
 ```
+
+`--config` reads model settings under `inference` and resource policy under `resources`; flat keys and `keep_alive_ms` are rejected at startup:
+
+```json
+{
+  "resources": { "inference": { "admission": { "max_concurrent_requests": 8 } } },
+  "inference": { "models_dir": "/models", "keep_alive": "60s", "max_loaded_models": 3 }
+}
+```
+
+CLI flags override config regardless of order; one or more `--preload-model kind:name` (or `kind:backend:name`) flags **replace** the config preload list. Client-only `inference.api_url` / `api_key` are accepted and ignored by the server.
+
+## Capacity and Memory
+
+- **Admission**: `resources.inference.admission.max_concurrent_requests` (default 32; `--max-concurrent-requests`; 0 disables) and `max_work_units` (`--max-work-units`). Requests are never queued: exhaustion returns `503` with `Retry-After: 1` and `retryable: true`. Standalone shares one budget across enrichment, query calls, `/ai/v1`, and `/ml/v1`.
+- **Residency**: `inference.max_loaded_models` (default 10; 0 unlimited), LRU idle eviction, `inference.keep_alive` (default `"5m"`; `"0"` disables idle unload).
+- **Memory**: one process envelope shared with storage and caches — `--process-memory-budget-mb` / `ANTFLY_PROCESS_MEMORY_BUDGET_MB` on `standalone` or `inference run`, else the cgroup limit, else host memory. Set it below the container limit in Burstable pods. Per-class ceilings in bytes under `resources.inference.memory.max_{host,device,combined,kv,scratch}_bytes` (CLI overrides `--{host,backend,combined,kv,scratch}-budget-mb` on `inference run`, `--inference-*-budget-mb` on `standalone`). A request that can never fit returns `MODEL_RESOURCE_LIMIT`; transient pressure returns retryable `MODEL_RESOURCE_BUSY`.
+- **Request ceilings**: `resources.inference.request_limits.{max_items_per_request,max_input_tokens_per_item,max_output_tokens_per_item,max_decoded_pixels_per_batch}`.
+- **Metrics**: `/ml/v1/metrics` on the inference listener exposes `antfly_inference_generation_*` (active/queued gauges, queue rejections, `queue_wait_seconds`, `first_content_seconds`, `prefill_seconds`, `decode_seconds`), `antfly_inference_cuda_managed_{live,peak,limit}_bytes`, and `antfly_inference_admission_{host,backend}_{weight,kv,scratch}_bytes`.
 
 ## Model Storage
 
@@ -70,11 +96,11 @@ An explicit variant gets its own leaf directory instead — `{models_dir}/{owner
 
 Legacy per-task subdirectories (`embedders/`, `chunkers/`, `rerankers/`, …) are still discovered.
 
-Traditional ML predictors live separately under `--ml-dir` / `ANTFLY_INFERENCE_ML_DIR`, discovered as `{ml_dir}/{name}/tabular_model.json`. Unlike the models directory, this one *is* data-root-dependent: a runtime started with a data directory resolves it to `<data-dir>/inference/ml`. `~/.antfly/inference/ml` is the standalone-CLI default (`./ml` when `HOME` is unset), and the `--ml-dir` help text advertises it unconditionally, which is wrong for a server started with `--data-dir`.
+Traditional ML predictors live separately under `--ml-dir`, else `$ANTFLY_INFERENCE_ML_DIR`, else `$HOME/.antfly/inference/ml`, else `./ml` — discovered as `{ml_dir}/{name}/tabular_model.json`. Like the models directory, it is independent of `--data-dir`.
 
 ## Model Roles
 
-The registry classifies models as `embedder`, `chunker`, `reranker`, `generator`, `recognizer`, `classifier`, `rewriter`, `reader`, `transcriber`, or `extractor`. Multimodal models (text + image + audio) are embedders with multimodal capabilities.
+The registry classifies models as `embedder`, `chunker`, `reranker`, `generator`, `classifier`, `rewriter`, `reader`, `transcriber`, or `extractor` (there is no `recognizer` role; GLiNER-style entity models are `extractor`). Multimodal models (text + image + audio) are embedders with multimodal capabilities.
 
 Verified example models:
 - `BAAI/bge-small-en-v1.5` — embedder
@@ -99,13 +125,15 @@ The provider name in index and query configs is `antfly`:
 { "provider": "antfly", "model": "fixed_bert", "text": { "target_tokens": 512, "overlap_tokens": 50 } }
 ```
 
-Config key for a remote inference endpoint:
+Config key for a remote inference endpoint (this turns embedded inference off — it is not a fallback):
 
 ```json
 { "inference": { "api_url": "http://127.0.0.1:8090" } }
 ```
 
 ## Kubernetes — InferencePool
+
+> **Unverified:** `InferencePool` is a Kubernetes operator CRD, and the operator moved to Colony (Antfly commit `871c143788`). The spec below reflects the operator as of Antfly `ab8d9fc119`. What the Antfly repo still documents: Colony's operator emits the canonical nested runtime config for every pool, so pools and the operator must be upgraded together to a compatible runtime.
 
 ```yaml
 apiVersion: antfly.io/v1alpha1
@@ -135,12 +163,14 @@ spec:
         target: "100ms"
 ```
 
-`spec.image` must provide the `/antfly inference ...` runtime contract. `spec.config` accepts a JSON string merged into the pool's runtime config (`admission`, `prompt_cache`, `kernel_jit`, `keep_alive_ms`, `max_loaded_models`); accelerator backends are selected from `spec.hardware`.
+`spec.image` must provide the `/antfly inference ...` runtime contract; accelerator backends are selected from `spec.hardware`. Whatever `spec.config` carries must use the current runtime shape — model settings nested under `inference` (`prompt_cache`, `kernel_jit`, `keep_alive` as a duration string, `max_loaded_models`, `preload`) and limits under `resources.inference` (`admission`, `memory`, `request_limits`). The runtime rejects the old flat keys and `keep_alive_ms`; there is no legacy fallback. For eager preloads, give each model a recognized task (`tasks: [embed]`, `tasks: [generate]`) or an explicit `kind`.
 
 ## Sharp Edges
 
 - First request against a model is slow unless `loadingStrategy: eager` preloads it
-- `antfly inference list` reads exactly one argument, the first, and only if it does not start with `--`: a flag in that slot consumes it, so `antfly inference list --models-dir /x` silently lists the default directory. `--help` is not handled either
+- `antfly inference list` errors on any flag other than `--models-dir`, including `--help`
+- `antfly inference run --host 0.0.0.0` refuses to start without `--allow-insecure-public-bind`
+- Standalone `/ai/v1` is 403 until `public_inference.enabled: true`
 - Bare model names without an owner are rejected on pull
 - Generation is limited to a specific set of supported architectures — check before pulling a generator
 - Hugging Face predictor pulls accept only safe native formats (`tabular_model.json`, ONNX-ML, XGBoost JSON, LightGBM text); pickle/joblib/skops artifacts are detected and refused

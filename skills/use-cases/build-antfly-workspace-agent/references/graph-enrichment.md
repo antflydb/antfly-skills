@@ -3,7 +3,9 @@
 Keep three capabilities separate:
 
 1. **Graph index:** Antfly stores explicit edges and answers bounded traversal queries.
-2. **Extraction model:** GLiNER2 reads text and proposes entities/relationships.
+2. **Extraction model:** an `extractor` producer (upstream examples use GLiNER2.5,
+   `fastino/gliner2.5-base-v1`) reads text and proposes entities/relationships against a
+   declared schema; entity resolvers merge repeated mentions into canonical entities.
 3. **Projection:** validated source-backed candidates become indexed edges.
 
 A connected model listing does not prove inference works. Test the advertised model with
@@ -18,13 +20,15 @@ uncertainty labels. An invited attendee is not confirmed attendance; a suggested
 an accepted commitment. Every returned relation inherits its evidence's access requirements.
 
 Test graph storage with an isolated synthetic fixture and exact expected paths. Separately
-test GLiNER2, projection and retrieval over the actual corpus. Do not claim that an isolated
+test extraction, resolution, projection and retrieval over the actual corpus. Do not claim that an isolated
 graph test demonstrates a working private knowledge graph.
 
-The Antfly pilot previously passed native graph indexing/traversal tests, but GLiNER2 model
-loading returned `MODEL_LOAD_FAILED` / `CudaUnavailable`; the advertised shared quantized
-variant returned 502. Recheck current status and diagnose the selected route/worker. Do not
-change unrelated local inference settings based only on a shared connection screenshot.
+Dated pilot note (pre-v0.3, needs recheck): native graph indexing/traversal passed, but the
+shared GLiNER2 route returned `MODEL_LOAD_FAILED` / `CudaUnavailable` and the quantized variant
+returned 502. Upstream now documents a local GLiNER2.5 extractor pulled with
+`antfly inference pull ... --tasks extract`; retest on the selected deployment before
+advertising extraction. Do not change unrelated local inference settings based only on a
+shared connection screenshot.
 
 When extraction is unavailable, keep the general agent usable through verified search and
 show graph enrichment as unavailable. Add embeddings or deterministic source-link edges only

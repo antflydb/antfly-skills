@@ -11,32 +11,46 @@ queries and, when configured, generates an LLM answer with streaming.
 
 | `stream` | Response |
 |----------|----------|
-| `true` | `text/event-stream` — SSE events (see below) |
-| `false` (default) | `application/json` — a `RetrievalAgentResult` |
+| `true` (default) | `text/event-stream` — SSE events (see below) |
+| `false` | `application/json` — a `RetrievalAgentResult` |
 
-The spec declares `default: true`, but the server reads the field as `stream orelse false`, so an
-omitted `stream` returns JSON. Ask for SSE explicitly with `stream: true`.
+The server reads the field as `stream orelse true`, matching the spec default: an omitted `stream`
+returns SSE. Send `stream: false` for a single JSON body.
 
 **Pipeline vs agentic mode** is chosen by `max_internal_iterations`:
 
 | Value | Mode |
 |-------|------|
 | `0` (default) | Pipeline — the `queries[]` you supply are executed directly, no LLM tool-calling loop |
-| `> 0` | Agentic — an iterative planner (deterministic rule function over attempt scores, not an LLM) refines, switches strategy, or asks for clarification; `queries[]` declare the available tables and indexes |
+| `> 0` | Agentic — `queries[]` declare the available tables and indexes; how the iterations are driven depends on whether a generator is configured (below) |
 
-Only a negative `max_internal_iterations` is rejected (HTTP 400); values above 20 are accepted. The
-1–20 bound belongs to `tools.max_tool_iterations`, which is validated on that range and then
-silently lowers the effective count — the agent runs `min(max_internal_iterations,
-max_tool_iterations)` iterations.
+Agentic mode has two drivers:
 
-Both `query` (the natural-language string) and `queries[]` are required. Each `queries[]` entry carries its own `table`, plus `indexes`, `semantic_search`,
+- **With a generator** (top-level `generator`/`chain`, or `steps.generation`) — an LLM tool loop. The
+  model calls `build_query` and `search` (plus `navigate`, `web_search`, `fetch` when those are
+  configured) for up to `max_internal_iterations` rounds, then answers. The server keeps control of
+  tables, mandatory filters, indexes, and limits. The provider must support tool calling — `apple`
+  does not.
+- **Without a generator** — a deterministic planner (a rule function over attempt scores, not an
+  LLM) refines, switches strategy, or asks for clarification.
+
+Navigation (`tree`/`graph` agentic navigation) and web access require the LLM driver; without a
+generator they are rejected.
+
+`max_internal_iterations` must be 0–20; anything outside that range is HTTP 400.
+`tools.max_tool_iterations` is also validated on 1–20 and silently lowers the effective count — the
+agent runs `min(max_internal_iterations, max_tool_iterations)` iterations.
+
+Both `query` (the natural-language string) and `queries[]` are required. Each `queries[]` entry must carry its own `table` (an entry without one is HTTP 400), plus `indexes`, `semantic_search`,
 `full_text_search`, `limit`, and so on. `filter_query` / `exclusion_query` on a query entry are
 mandatory predicates **for that entry only**: they are conjoined (exclusions unioned) into every
 generated refinement, probe, aggregation, graph/tree traversal, and root scan derived from that
 entry, and the LLM cannot weaken them. They are not table-scoped — a filter on `queries[1]` does not
 constrain `queries[0]`, even when both name the same table. If you need a predicate to bind every
 query, put it on every entry, or use `accumulated_filters`, which is the only global source: it is
-folded into each entry's mandatory predicates before the per-entry predicates are added.
+folded into each entry's mandatory predicates before the per-entry predicates are added. A
+canonical `query` on an entry contributes too: its `bool.filter` clauses are folded into that entry's
+mandatory filters and its `bool.must_not` clauses into its mandatory exclusions.
 
 ### Retrieval Strategies
 
@@ -59,6 +73,7 @@ folded into each entry's mandatory predicates before the per-entry predicates ar
 | `classification` | `ClassificationTransformationResult` | Query classification / transformation |
 | `reasoning` | Text chunk | Agent's reasoning (streamed incrementally) |
 | `tool_mode` | `SSEToolMode` | Tool-calling mode selected (agentic mode) |
+| `context_management` | `AgentContextEvent` | Prompt context was compacted or summarized to fit the window |
 | `hit` | `QueryHit` | Individual retrieved document |
 | `generation` | Text chunk | Generated answer text (streamed incrementally) |
 | `followup` | Question string | Suggested follow-up question |
@@ -79,31 +94,33 @@ Generation runs **only when `steps.generation` is configured**. With no generati
 a retrieval pipeline: it returns hits and no answer.
 
 `GenerationStepConfig`:
-- `enabled` — the spec's default is `false`, but the server does not behave that way: configuring
-  `steps.generation` at all runs the step unless you set `enabled: false` explicitly
+- `enabled` — deprecated compatibility switch. The step runs whenever the object is present; omit
+  the step (or send `enabled: false`) to turn it off
 - `generator` — a `GeneratorConfig`. A generator is required once the step runs, but it does not have
   to sit on the step: the step config is satisfied by either `steps.generation.generator` or a
-  top-level `request.generator` (the step-level one wins). With neither, the request is rejected
+  top-level `request.generator`/`chain` (the step-level one wins). With neither, the request fails
+  with HTTP 422
 - `system_prompt` — custom system prompt for answer generation
 - `generation_context` — guidance for tone, detail level, and style. It does **not** append to the
   default prompt, it replaces it: the system prompt becomes `Answer the user query using only the
   retrieved documents. <your context>`, which drops the default's cite-document-ids instruction. Set
   `system_prompt` instead when you want citations plus style guidance
 
-`chain` is **rejected** on the retrieval agent — both `steps.generation.chain` and the top-level
-`chain` return HTTP 400 `invalid retrieval agent request`. Chain fallback is declared in the spec but
-not implemented here; configure a single `generator`.
+`chain` (fallback across generators) is accepted when `steps.generation` is present — on the step or
+at the top level. Without a generation step, a top-level `chain` is rejected with HTTP 400. `generator`
+and `chain` are mutually exclusive at each level, and an empty chain is a 400.
 
-Generator providers: the retrieval agent accepts only `gemini`, `vertex`, `openai`, `ollama`, and
-`antfly`. `anthropic`, `bedrock`, `cohere`, `openrouter`, and `mock` are in the API enum and parse
-against the schema, but config conversion has no branch for them and rejects the request with HTTP
-400 `invalid retrieval agent request`.
+Generator providers: `gemini`, `vertex`, `bedrock`, `anthropic`, `cloudflare`, `openai`, `chatgpt`,
+`openrouter`, `ollama`, `antfly`, and `apple`. Any other provider string is HTTP 400 `invalid
+retrieval agent request`. `apple` cannot drive the agentic tool loop.
 
 Generator config is separate from embedder config — they can use different providers.
 
-`document_renderer` (a handlebars template, e.g. `{{encodeToon this.fields}}`) is a **QueryRequest**
-field. On a retrieval-agent request it is rejected unconditionally with HTTP 400, with or without
-`steps.generation`.
+Documents enter the generation prompt as `Document N (id=<_id>): …`, with each hit's fields encoded
+as TOON by default. `document_renderer` (a Handlebars template rendered per hit against
+`{id, score, fields}`, e.g. `{{encodeToon this.fields}}` or `Title: {{{this.fields.title}}}`)
+replaces that rendering. It requires `steps.generation`; without one, or with an invalid template, the
+request is HTTP 400. On a plain `QueryRequest`, `document_renderer` is rejected.
 
 ### Citations
 
@@ -133,16 +150,16 @@ Classification is **deterministic**, not model-driven: `strategy` comes from key
 the query string (`" and "`, `compare`, `versus` → `decompose`; `how does`, `why does`,
 `architecture`, `workflow`, `background` → `step_back`; `overview`, `benefits`, `tradeoffs`,
 `concept`, `summarize` → `hyde`; otherwise `simple`), and `semantic_mode` is derived from the
-strategy. No LLM is called — `steps.classification.generator` and `steps.classification.chain` are
-**rejected** with HTTP 400.
+strategy. No LLM is called; the step schema has no `generator` or `chain`, and the server rejects
+them (HTTP 400).
 
 `force_strategy` and `force_semantic_mode` on the step config override that heuristic.
 
 ### Follow-Up Questions
 
-Configuring `steps.followup` runs the step unless you set `enabled: false` explicitly — the spec's
-`false` default does not apply. Follow-ups require `steps.generation`. `generator` and `chain` on the
-followup step are **rejected** (HTTP 400).
+Configuring `steps.followup` runs the step (`enabled` is a deprecated compatibility switch).
+Follow-ups require `steps.generation`. The step schema carries only `count`; `generator`, `chain`, and
+`context` are rejected (HTTP 400).
 
 The questions themselves are **hardcoded templates** — no generator is invoked, and the generated
 answer is not read. The first question is always `What else should I know about: {query}?`; any
@@ -152,8 +169,7 @@ further questions come in order from a fixed list:
 2. `How would this change in a multi-node deployment?`
 3. `What are the main operational tradeoffs here?`
 
-`count` (default 3) clamps to 1–4, so four questions is the ceiling regardless of the spec's maximum
-of 10. `context` is accepted by the schema and ignored by the server.
+`count` (default 3) must be 1–4; anything outside that range is HTTP 400.
 
 ### Evaluation
 
@@ -173,38 +189,56 @@ used to score anything.
 
 ## SDK Usage
 
-**TypeScript** (`@antfly/sdk` 0.0.14):
-```
-client.retrievalAgent(request, callbacks)
-  → Promise<RetrievalAgentResult | AbortController>
-```
-The `AbortController` is returned only in streaming mode; a JSON (`stream: false`) response resolves
-to the `RetrievalAgentResult`. Callers must narrow the union.
+**TypeScript** (`@antfly/sdk` 0.3.0) splits the two response modes into two methods:
 
-Callbacks: `onClassification`, `onReasoning`, `onHit`, `onGeneration`, `onConfidence`, `onFollowup`,
-`onEvalResult`, `onFilterApplied`, `onSearchExecuted`, `onStepStarted`, `onStepProgress`,
-`onStepCompleted`, `onDone`, `onError`.
+```ts
+import { AntflyClient } from "@antfly/sdk";
 
-The list is wider than the wire. `onConfidence`, `onFilterApplied`, and `onSearchExecuted` are dead:
-the server emits no `confidence`, `filter_applied`, or `search_executed` event, so they never fire
-(confidence still arrives on `done`, as above). The gap runs the other way too — the server emits
-`tool_mode` in agentic mode and the SDK has no callback for it, so read it from `done`'s steps or
-parse the stream yourself.
+const client = new AntflyClient({ baseUrl: "http://localhost:8080" });
+
+const request = {
+  query: "How do I rotate API keys?",
+  queries: [{ table: "docs", semantic_search: "rotate API keys", indexes: ["embeddings"], limit: 5 }],
+  steps: { generation: { generator: { provider: "antfly" as const, model: "local" } } },
+};
+
+// JSON: sends stream: false, resolves to RetrievalAgentResult.
+const result = await client.retrievalAgent(request);
+console.log(result.generation, result.hits?.length);
+
+// SSE: sends stream: true, resolves to an AbortController.
+const controller = await client.streamRetrievalAgent(request, {
+  onHit: (hit) => console.log(hit._id),
+  onGeneration: (chunk) => process.stdout.write(chunk),
+  onToolMode: (mode) => console.log(mode),
+  onDone: (done) => console.log(done.status),
+  onErrorDetail: (err) => console.error(err),
+});
+controller.abort();
+```
+
+Both methods take an optional third `{ signal }`. `retrievalAgent(request, callbacks)` still compiles
+but is deprecated; it delegates to `streamRetrievalAgent`.
+
+Callbacks: `onContextManagement`, `onClassification`, `onReasoning`, `onHit`, `onGeneration`,
+`onConfidence`, `onFollowup`, `onEvalResult`, `onToolMode`, `onStepStarted`, `onStepProgress`,
+`onStepCompleted`, `onDone`, `onErrorDetail` (typed errors, including `InferenceCapacityError` with
+`retryAfterMs`), and the legacy string `onError`. `onConfidence` fires from the `done` payload when it
+carries both `generation_confidence` and `context_relevance` — there is no `confidence` SSE event.
 
 **React**: `<AnswerResults>` handles streaming automatically. `useAnswerStream` is available for
 custom implementations.
 
 ## Sharp Edges
 
-1. **JSON is the default, not SSE** — the spec says `stream` defaults to `true`, but the server
-   applies `false`. Omit the field and you get `application/json`; a client that expects a stream
-   must set `stream: true`.
-2. **Generation is opt-in, but `enabled` is not the switch** — without `steps.generation` there is no
-   answer, only hits. Once you configure a step it runs; `enabled: false` is the only way to turn it
+1. **SSE is the default** — omit `stream` and you get `text/event-stream`. Send `stream: false` for
+   JSON (the TS SDK's `retrievalAgent()` does this for you).
+2. **Generation is opt-in by presence** — without `steps.generation` there is no answer, only hits.
+   Once you configure a step it runs; omit it (or send the deprecated `enabled: false`) to turn it
    off. Same for `steps.confidence` and `steps.followup`, both of which also require
    `steps.generation` — as do the generation-side evaluators in `steps.eval`.
-3. **`max_internal_iterations` defaults to 0** — the default is pipeline mode. Raise it to let the
-   planner iterate; it does not need a generator to do so.
+3. **`max_internal_iterations` defaults to 0** — the default is pipeline mode. Raise it (max 20) to
+   iterate: with a generator the LLM drives a tool loop, without one the deterministic planner runs.
 4. **Generator config ≠ embedder config** — the LLM that generates answers is configured separately
    from the embedding model that does retrieval.
 5. **Citation format is prompt-dependent** — the default prompt yields inline document ids. If you

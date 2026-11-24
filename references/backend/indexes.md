@@ -1,8 +1,8 @@
-# Indexes — Full-Text, Embeddings, Graph, Algebraic
+# Indexes — Full-Text, Embeddings, Graph, Algebraic, Relational
 
 Indexes are attached to tables and determine what kinds of queries are possible. A table can have multiple indexes of different types. The index name is the key of the table's `indexes` map — do not repeat `name` inside the config.
 
-Index types: `full_text`, `embeddings`, `graph`, `algebraic`. Query-time access to *external* data is not an index type — see `foreign_sources` in [search.md](search.md).
+Index types: `full_text`, `embeddings`, `graph`, `algebraic`, `relational`. Query-time access to *external* data is not an index type — see `foreign_sources` in [search.md](search.md).
 
 ## Full-Text Index (BM25)
 
@@ -22,7 +22,7 @@ Keyword search with BM25 relevance scoring. The query-string grammar is a Lucene
 
 Type: `embeddings`
 
-Dense HBC (hierarchical balanced clustering) by default; `sparse: true` creates a SPLADE inverted index instead. Each managed embeddings index defines:
+Dense HBC (hierarchical balanced clustering) by default, or LEANN with `algorithm: "leann"`; `sparse: true` creates a SPLADE inverted index instead. Each managed embeddings index defines:
 
 1. **Source** — a `field` to embed, or a handlebars `template` producing the text/multimodal content
 2. **Embedder** — which embedding model/provider to use
@@ -37,23 +37,33 @@ Set `external: true` to supply vectors yourself via `_embeddings`; then no field
 The template runs against each document to produce the embedding input:
 
 - Text: `{{title}} {{content}}` — concatenates fields
-- Multimodal: `{{media url=image_url}}{{caption}}` — embeds image + text together
+- Multimodal: `{{media url=image_url}}{{caption}}` — embeds image + text together (the embedder must accept images; see `inputs` below)
 - Selective: `{{#if category}}Category: {{category}}. {{/if}}{{description}}` — conditional inclusion
 
 Templates must reference fields that exist in the document. Missing fields produce empty strings.
 
 ### Embedding Providers
 
-Index creation accepts **four** providers. Anything else — including spec-enum values such as gemini, vertex, openrouter, cohere, and anthropic — is rejected with `UnsupportedEmbeddingProvider`, even though the OpenAPI enum is wider.
+`EmbedderProvider`: `antfly`, `bedrock`, `cloudflare`, `cohere`, `gemini`, `vertex`, `ollama`, `openai`, `openrouter`. There is no `anthropic` embedder.
 
 | Provider | Config key | Notes |
 |----------|-----------|-------|
-| Antfly inference | `antfly` | Built-in local ONNX inference, loaded from `models/embedders/{name}/`. e.g. bge-base-en-v1.5 (768d), all-MiniLM-L6-v2 (384d) |
-| Ollama | `ollama` | Local. e.g. nomic-embed-text (768d), mxbai-embed-large (1024d), all-minilm (384d) |
+| Antfly inference | `antfly` | Built-in local runtime (GGUF, safetensors, or ONNX artifacts on Antfly's own CPU/Metal/CUDA kernels), loaded from `models/embedders/{name}/`. Accepts text, image, and audio inputs |
+| Ollama | `ollama` | Local. e.g. nomic-embed-text (768d), mxbai-embed-large (1024d) |
 | OpenAI | `openai` | `text-embedding-3-small` (1536d), text-embedding-3-large (3072d). `dimensions` for MRL reduction |
-| AWS Bedrock | `bedrock` | AWS credential chain. e.g. `cohere.embed-v4`, `amazon.titan-embed-text-v2:0`. `request_format` ∈ `auto` (default), `titan_text`, `titan_multimodal`, `cohere_v3`, `cohere_v4` |
+| OpenRouter | `openrouter` | OpenAI-compatible; defaults to the OpenRouter endpoint |
+| AWS Bedrock | `bedrock` | AWS credential chain. e.g. `cohere.embed-v4`, `amazon.titan-embed-text-v2:0`. `request_format` ∈ `auto` (default), `titan_text`, `titan_multimodal`, `cohere_v3`, `cohere_v4`. Accepts text and image |
+| Gemini / Vertex | `gemini` / `vertex` | `request_format` and `task_encoding` (`prompt` \| `task_type` \| `none`) are Google-only |
+| Cohere | `cohere` | `retrieval.query_input_type` / `document_input_type` |
+| Cloudflare Workers AI | `cloudflare` | `account_id`, optional `gateway_id` |
 
-A **non-empty `model` is required for every provider** — no default is ever substituted. The per-provider `default` values in the spec are annotations on a required field, so an empty or missing model fails the create with `InvalidCreateTableRequest`.
+The embedder validator requires a non-empty `model` for every provider except `antfly`.
+
+**Input types**: the removed `multimodal` flag is replaced by `inputs` (`["text", "image", "audio"]`).
+Normally omit it — Antfly discovers what the model accepts. Set it only for a model whose capabilities
+Antfly cannot discover; it then replaces the discovered set. Only `antfly` (image, audio) and
+`bedrock` (image) accept media inputs; other providers reject them. A stored `multimodal` value is
+ignored.
 
 There is no `termite` provider — local inference is `antfly`.
 
@@ -88,9 +98,22 @@ Each chunk gets its own embedding vector. Search returns the most relevant chunk
 - `l2_squared` — Euclidean distance
 - `inner_product` — dot product
 
-### Quantization
+### Algorithm and Quantization
 
-RaBitQ quantization is applied automatically as an internal storage format for vector compression — there is no quantization field on the index config to set.
+Dense indexes use RaBitQ codes. These fields are fixed when the index is created:
+
+- `algorithm` — `hbc` (default; quantized codes plus full-precision rerank data) or `leann` (a pruned
+  proximity graph plus compact codes; recomputes exact distances for a few candidates per query by
+  re-embedding or reading stored embeddings — smaller index, more query-time work). LEANN does not yet
+  support shard splits or native index backups.
+- `quantization_bits` — 1–8 bits per dimension. HBC default 1; above 1 stores extended codes used to
+  rescore candidates (better recall, ~`dims * bits / 8` extra bytes per vector). LEANN default 4 with
+  the `rabitq` quantizer; `pq` allows only 1.
+- `quantization_refine` — HBC with `quantization_bits > 1` only: `near_cutoff` (default; rescore only
+  candidates that could still enter the results) or `all`. Not allowed with `leann`.
+- `leann` — tuning block for `algorithm: "leann"`: `max_degree` (4–128, default 30), `quantizer`
+  (`rabitq` default \| `pq`), `vector_storage` (`auto` \| `transient` \| `persistent`), `search_ef`,
+  `bound_scale`, `batch_size`.
 
 ### Multiple Indexes
 
@@ -112,6 +135,40 @@ Exclusivity is **per field, not per index**: an `edge_types` entry that declares
 
 **Example**: an edge type `mentions_entity` on field `entities` creates edges from a document to every entity it mentions.
 
+## Relational Index
+
+Type: `relational`
+
+A schema-bound composite ordered index on a **relational table** (typed rows, see the relational row
+APIs): `keys` (1–32), each with its own direction, null placement, and string collation. Existing rows
+build asynchronously; indexed queries need complete coverage. The table schema is the durable
+authority for these definitions. Not used on document tables.
+
+## Index Aliases
+
+`PUT|GET|DELETE /db/v1/tables/{table}/index-aliases/{alias}` (also under
+`/db/v1/databases/{db}/namespaces/{ns}/tables/{table}/...`) gives a stable name that points at one
+concrete index, so applications can switch embedding models without changing the index name in
+queries.
+
+```json
+PUT /db/v1/tables/docs/index-aliases/chunk_vectors
+{ "index": "chunk_vectors_v2", "expected_index": "chunk_vectors_v1", "require": "complete", "idempotency_key": "upgrade-v2" }
+```
+
+- Create by omitting `expected_index`; swap by supplying the exact current target (stale → 409).
+- `require`: `complete` (default) or `queryable` (also accepts partial serving). A swap rejects an
+  unready target, a different index kind, or a dense/sparse mismatch.
+- Aliases cannot shadow a concrete index or point at another alias.
+- Use the alias anywhere an index name goes: `indexes`, `full_text_index`, embedding map keys,
+  `graph_queries` `index`, graph metric requests. Resolution happens before embedding, and the alias
+  selects the query embedder together with the index. Results carry `resolved_indexes`.
+- `DELETE` requires `If-Match` with the ETag from `GET` (missing → 428, stale → 412). Physical
+  indexes are untouched.
+- Mutations need table admin; `GET` needs table read. Retry an ambiguous `PUT` with the identical
+  body and `idempotency_key`. Limit 64 aliases per table.
+- Distributed clusters: upgrade every metadata and data node before using aliases.
+
 ## Algebraic Index
 
 Type: `algebraic`
@@ -130,8 +187,8 @@ Summaries are not an enrichment kind — they come from `summarizer` on the embe
 
 `sync_level` decides when enrichments run relative to the commit — it is not one monotonic ladder:
 - `propose` (default) / `write` — enrichments run in the background after the commit
-- `full_text` — waits for full-text publication only; enrichments still run in the background
-- `enrichments` — enrichments are precomputed **synchronously before commit**; a producer failure rejects the write
+- `query` (alias `full_text`) — waits for full-text query visibility only; enrichments still run in the background
+- `enrichments` — waits for this write's enrichment publication. Precomputing before commit (where a producer failure rejects the write) is selected by `commit_requires: "direct_enrichments"`; when `commit_requires` is omitted, embedded `enrichments`/`full_index` writes keep the legacy precompute during the migration window. See [data.md](data.md#sync-levels)
 - `full_index` — waits for all of **that write's own** derived effects, vector indexes included. It does not wait on corpus-wide backfill of a newly created index
 
 ## Sharp Edges
@@ -141,5 +198,5 @@ Summaries are not an enrichment kind — they come from `summarizer` on the embe
 3. Handlebars templates must reference existing document fields — a field missing from the document renders as an empty string.
 4. `sync_level: "full_index"` is required to query vector results immediately after writing — for that write only, not for a new index still backfilling. `"aknn"` is a removed alias and servers reject it.
 5. Multiple embedding indexes per table are supported, but the map key (the index name) must be unique.
-6. Changing an embedding model means `DELETE` the index then `POST` it again with the new config; existing data is re-enriched automatically (asynchronously, in the background).
+6. Changing an embedding model: either `DELETE` the index and `POST` it again (re-enriched in the background), or create a new index beside it and swap an [index alias](#index-aliases) once it is ready, which avoids a gap in serving.
 7. There is no `remote` index type. Query-time federation is `foreign_sources` on the query request.

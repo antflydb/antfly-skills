@@ -41,7 +41,7 @@ const files = [
 // Each rule: pattern (RegExp, applied per line), message, optional allow
 // (RegExp — a line matching allow is exempt, e.g. a "not X" correction).
 const forbidden = [
-  { pattern: /\/api\/v1/, message: "no /api/v1 base exists — use /db/v1, /auth/v1, or /ai/v1" },
+  { pattern: /\/api\/v1/, message: "no /api/v1 base exists — use /db/v1, /auth/v1, or /ai/v1", allow: /openrouter\.ai\/api\/v1/ },
   { pattern: /["'`]aknn["'`]|sync_level:\s*"?aknn/, message: 'sync_level "aknn" was removed — use "full_index"' },
   { pattern: /["'`]provider["'`]\s*:\s*["'`]termite["'`]/, message: 'provider "termite" does not exist — use "antfly"' },
   { pattern: /["'`]provider["'`]\s*:\s*["'`]google["'`]/, message: 'provider "google" does not exist — use "gemini"' },
@@ -65,18 +65,27 @@ const forbidden = [
   { pattern: /silently returns? (?:nothing|zero results|no results)/i, message: "missing indexes is rejected with HTTP 422, never a silent empty result" },
   { pattern: /return_level/, message: 'hierarchy has no return_level field — grouping levels are "source" and "unit"' },
   { pattern: /"level"\s*:\s*"chunk"|level: "chunk"/, message: 'hierarchy levels are "source" and "unit"; there is no "chunk" level' },
+  // Retired in the Antfly 0.3 line (verified against upstream main 80625bd71c).
+  { pattern: /rerank_multimodal/, message: "/ai/v1/rerank_multimodal was removed — use /ai/v1/rerank with documents" },
+  { pattern: /\bonFilterApplied\b|\bonSearchExecuted\b/, message: "@antfly/sdk 0.3 removed onFilterApplied/onSearchExecuted — see onToolMode/onContextManagement/onErrorDetail" },
+  { pattern: /\b(?:de)?serializeEmbeddings\b/, message: "@antfly/sdk 0.3 replaced (de)serializeEmbeddings with decodeNumericDenseFrame/serializeNumericDenseFrame" },
+  { pattern: /\bpgaf\b/, message: "the Postgres extension is antfly-postgres (CREATE EXTENSION antfly_postgres)" },
+  { pattern: /["'`]multimodal["'`]\s*:\s*(?:true|false)/, message: "the embedder multimodal flag was replaced by discovered capabilities or an explicit inputs list" },
+  { pattern: /\bmaxIterations\b|\breasoningChain\b/, message: "@antfly/components 0.3 uses maxInternalIterations and ChatTurn.steps" },
+  { pattern: /stream orelse false/, message: "the retrieval agent reads stream orelse true — an omitted stream returns SSE" },
 ];
 
 // Enum membership: capture value, must be in set.
 const enums = [
   {
     pattern: /sync_level"?\s*[:=]\s*"([a-z_]+)"/gi,
-    set: new Set(["propose", "write", "full_text", "enrichments", "full_index"]),
+    set: new Set(["propose", "write", "query", "full_text", "enrichments", "full_index"]),
     label: "sync_level",
   },
   {
     pattern: /"provider"\s*:\s*"([a-z_]+)"/g,
-    set: new Set(["gemini", "vertex", "ollama", "openai", "openrouter", "bedrock", "anthropic", "cohere", "antfly", "mock"]),
+    // Union of Embedder/Generator/Reranker/Extraction/Chunker/STT provider enums.
+    set: new Set(["gemini", "vertex", "ollama", "openai", "openrouter", "bedrock", "anthropic", "cohere", "antfly", "mock", "cloudflare", "chatgpt", "apple", "pioneer"]),
     label: "provider",
   },
 ];
@@ -134,12 +143,13 @@ const specPath = process.env.ANTFLY_OPENAPI;
 if (specPath && existsSync(specPath)) {
   const spec = readFileSync(specPath, "utf8");
   const specPaths = new Set();
-  for (const m of spec.matchAll(/^ {2}(\/(?:db|auth|ai|ml|extensions)\/v1[^\s:]*):\s*$/gm)) {
+  for (const m of spec.matchAll(/^ {2}(\/(?:db|auth|ai|ml|extensions|memory)\/v1\S*):\s*$/gm)) {
     specPaths.add(m[1].replace(/\{[^}]+\}/g, "{}"));
   }
   // Live surfaces that are intentionally outside the OpenAPI contract.
-  const specExempt = new Set();
-  const pathRe = /(\/(?:db|auth|ai)\/v1\/[A-Za-z0-9_\-.{}/]*[A-Za-z0-9_\-{}])/g;
+  // The memory MCP servers are JSON-RPC endpoints, like /mcp/v1, outside the spec.
+  const specExempt = new Set(["/memory/v1/mcp", "/memory/v1/mcp/agent"]);
+  const pathRe = /(\/(?:db|auth|ai|memory)\/v1\/[A-Za-z0-9_\-.{}/]*[A-Za-z0-9_\-{}])/g;
   // A doc path matches a spec path when every spec `{}` segment absorbs the
   // doc's concrete segment (examples use real values in param positions).
   const segMatch = (specPath, docPath) => {

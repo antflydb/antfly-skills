@@ -5,5 +5,6 @@
 - Use discovery tools only for explicit setup or diagnosis.
 - Never mutate Antfly data, tables, indexes, backups, or permissions from a retrieval task.
 - Keep `tableName` outside raw `queryRequest`; specify the embeddings index for semantic search.
+- Send `"hierarchy": {}` for direct chunk matches and project only the text field you cite; never request `_chunks.*`.
 - Build factual answers from returned explanatory content and cite public sources.
 - Stop on authentication, authorization, invalid-request, or tool-level errors.

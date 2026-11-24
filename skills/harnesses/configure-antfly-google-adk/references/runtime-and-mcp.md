@@ -58,7 +58,14 @@ Discover response envelopes, field names and tool schemas on the target. For the
 query contract, `tableName` and `queryRequest` are separate arguments. `get_document`
 requires its own discovered argument mapping and the same source-access boundary.
 
-When the endpoint already enforces the required caller/source scope, ADK's `McpToolset`
+Self-hosted Antfly can enforce caller scope natively: the application (as a trusted gateway)
+sends a short-lived HS256 JWT in `X-Antfly-Trusted-Principal` with the caller's `tables`,
+`operations`, `row_filter` (using `$auth` references to `metadata`) and identity. This needs
+the `antfly.trusted_principal.secret` keystore entry (and issuer when configured). Row filters
+from every principal combine with AND, every MCP tool call is rechecked, and an MCP session
+cannot retain an earlier request's broader permissions. See `references/backend/auth.md`.
+
+When the endpoint enforces the required caller/source scope this way, ADK's `McpToolset`
 with `StreamableHTTPConnectionParams` is another option. Select only the discovered retrieval
 tools. A raw instance-wide toolset is not a private multi-user permission implementation.
 Check the installed SDK against [ADK MCP guidance](https://google.github.io/adk-docs/tools-custom/mcp-tools/).

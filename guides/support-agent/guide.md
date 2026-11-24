@@ -15,10 +15,10 @@ and escalates deterministically when evidence is insufficient.
 
 You need:
 
-- an Antfly Cloud instance;
+- an Antfly Cloud instance or a self-hosted Antfly server (MCP at `/mcp/v1`);
 - a documentation source in GitHub or S3-compatible storage;
 - a document table with full-text and embeddings indexes;
-- a dedicated read-only API key;
+- a dedicated read-only API key (Cloud instance key, or a self-hosted user key scoped to the table);
 - one supported agent harness.
 
 ## Guided path
@@ -28,6 +28,8 @@ You need:
 3. Use `connect-antfly-mcp` to verify the read-only tool boundary.
 4. Choose the Codex, Claude Code, n8n, or Copilot harness skill.
 5. Use `build-antfly-support-agent` to apply grounding, citation, fallback, and escalation rules.
+   With the native retrieval agent, a reranker plus pruner relevance floor turns off-topic
+   questions into empty hits, a deterministic escalation signal.
 6. Run the portable evaluation set and harness-specific direct-chunk regression before publishing.
 
 ## Successful completion

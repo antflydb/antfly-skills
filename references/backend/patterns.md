@@ -59,7 +59,7 @@ Dense recipes for common use cases. Not runnable code — the pattern the AI sho
 4. Semantic search with text query: `semantic_search: "sunset over mountains"` + `indexes: ["your_clip_index"]`
 5. Results ranked by visual+textual similarity
 
-**Sharp edges**: CLIP models have smaller context than text-only models. Captions help but keep them concise. Remote media fetching is gated: private IPs are blocked by default, there is a download size budget (100 MiB default, lowerable via `remote_content.security.max_download_size_bytes`), and objects in S3 need `remote_content.s3` credentials — which are a separate trust domain from `storage.primary`. Multimodal embeddings are larger (higher dimension) — consider RaBitQ quantization.
+**Sharp edges**: CLIP models have smaller context than text-only models. Captions help but keep them concise. Remote media fetching is gated: private IPs are blocked by default, there is a download size budget (100 MiB default, lowerable via `remote_content.security.max_download_size_bytes`), and objects in S3 need `remote_content.s3` credentials — which are a separate trust domain from `storage.primary`. Multimodal embeddings are larger (higher dimension) — dense indexes already store RaBitQ codes; tune `quantization_bits` / `algorithm` at index creation (see [indexes.md](indexes.md#algorithm-and-quantization)).
 
 ## CDC from PostgreSQL
 

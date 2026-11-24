@@ -24,9 +24,10 @@ Collect:
 
 1. Verify ingestion, extraction, chunking, full-text indexing, and embeddings readiness.
 2. Test broad semantic and exact-term hybrid retrieval directly in Antfly.
-3. Create an instance-scoped read-only key and enforce `references/read-only-policy.json`.
+3. Create a read-only key (Cloud instance key or self-hosted user API key scoped to the table) and enforce `references/read-only-policy.json` as an allowlist.
 4. Apply the selected harness Skill and keep generation credentials separate.
-5. Implement the rules in `references/retrieval-contract.md`.
+5. Implement the rules in `references/retrieval-contract.md`. When using the native
+   retrieval agent, prefer its reranker plus pruner relevance floor so empty hits trigger escalation.
 6. Normalize private source paths into public citations before returning an answer.
 7. Run the portable cases in `assets/support-agent-evals.json` and the preserved Claude direct-chunk regression in `assets/claude-code-regression-evals.json`, then add product-specific cases.
 8. Measure first-query success, fallback rate, retrieval/generation latency, evidence quality, and citation accuracy separately.

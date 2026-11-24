@@ -28,7 +28,8 @@ or ingest the others. Further Workspace sources need their own connector and con
    dependencies. Index explanatory passages and verify search and document lookup.
    Choose a fixed snapshot or continuous synchronization, and show which is implemented.
 3. **Connect through MCP.** Discover the endpoint and tool schemas. Use a read-only
-   credential and enforce source access before retrieved content reaches the model.
+   credential and enforce source access before retrieved content reaches the model;
+   self-hosted Antfly can do this natively with trusted-principal tokens and row filters.
 4. **Choose the agent runtime.** Google ADK, n8n or another MCP client uses the same Antfly
    dataset. Apply grounding, citation and bounded tool-use rules in the chosen runtime.
 5. **Verify cross-source answers.** Test normal questions, source links, missing evidence,
@@ -52,8 +53,9 @@ a meeting summary does not independently corroborate its transcript.
 
 ## Optional graph enrichment
 
-Antfly's graph index stores relationships; GLiNER2 proposes entities and relationships
-from text; a validated projection connects the two. These are separate capabilities.
+Antfly's graph index stores relationships; an extraction model (upstream examples use
+GLiNER2.5, `fastino/gliner2.5-base-v1`) proposes entities and relationships from text, entity
+resolvers merge repeated mentions, and a validated projection connects the two. These are separate capabilities.
 A general graph can relate people, projects, documents, messages, meetings and events.
 No decision-specific ontology is required.
 
@@ -63,14 +65,20 @@ An advertised or connected model is not evidence of successful inference.
 
 ## Current implementation status
 
-Experimental. The separate Antfly pilot has ingested selected Gmail, Drive and Meet snapshots
-and exercised an agent over them. Calendar and continuous synchronization are not implemented.
-The existing UI remains a specialized prototype, and its retrieval adapter currently calls
-the Antfly API directly; it does not yet validate this Guide's complete MCP path.
+Experimental. Antfly Cloud has a hosted Google Workspace connection in pre-release: one
+connection covers Drive, Gmail and Calendar (`antfly-cloud connections connect
+google-workspace`, then `antfly-cloud sources add`), with Gmail-history and Calendar
+sync-token incremental sync. Local contract tests pass, but live hosted qualification is
+blocked, so it is not generally available. It does not cover Meet.
 
-Native graph indexing/traversal passed an isolated synthetic test. The latest GLiNER2
-shared-model check returned HTTP 500, `MODEL_LOAD_FAILED` / `CudaUnavailable`.
-Model-based graph enrichment is therefore unavailable, not a completed feature.
+The earlier separate Antfly pilot ingested selected Gmail, Drive and Meet snapshots and
+exercised an agent over them. Its UI remains a specialized prototype, and its retrieval adapter
+calls the Antfly API directly; it does not validate this Guide's complete MCP path.
+
+Native graph indexing/traversal passed an isolated synthetic test. A dated pre-v0.3 check of
+the shared GLiNER2 route returned `MODEL_LOAD_FAILED` / `CudaUnavailable`; upstream now
+documents a local GLiNER2.5 extractor. Recheck extraction on the target deployment before
+advertising model-based graph enrichment.
 
 The reusable package contains no private source data or credentials. Customer-specific
 integrations and internal product names belong in implementation notes, not this pattern.

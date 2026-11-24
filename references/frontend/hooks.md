@@ -36,9 +36,11 @@ startStream({
 })
 ```
 
-`request` is a `RetrievalAgentRequest`: `query` and `queries` are required. `stream` is not read from your request — it is overwritten from the set of wired callbacks, and this hook always wires streaming callbacks, so it always sends `stream: true`. `startStream` resets state and aborts any in-flight stream. Use `stopStream()` to cancel, `reset()` to clear state.
+`request` is a `RetrievalAgentRequest`: `query` and `queries` are required. `stream` is not read from your request — it is overwritten from the set of wired callbacks, and this hook always wires streaming callbacks, so it always sends `stream: true` (via `client.streamRetrievalAgent`). `startStream` resets state and aborts any in-flight stream. Use `stopStream()` to cancel, `reset()` to clear state.
 
-The hook wires only the SSE callbacks (`onClassification`, `onHit`, `onReasoning`, `onGeneration`, `onFollowup`, `onComplete`, `onError`), which is why it carries no confidence, eval, or step state. A plain JSON (non-SSE) response routes instead to `onRetrievalAgentResult`, which the hook leaves unwired: `isStreaming` flips back to false and `answer` stays empty, with no error.
+The hook wires `onClassification`, `onHit`, `onReasoning`, `onGeneration`, `onFollowup`, `onRetrievalAgentResult`, `onComplete`, and `onError`, so it carries no confidence, eval, or step state. A plain JSON reply (or the terminal SSE `done` payload) goes to `onRetrievalAgentResult`, which fills `answer`, `hits`, `classification`, and `followUpQuestions` from whichever of those fields the result contains.
+
+The same plumbing is exported as a function: `streamAnswer(url, request, headers, callbacks: AnswerCallbacks, { signal }?)` returns a `Promise<AbortController>`. It sends `stream: true` only when at least one streaming callback is wired; otherwise it makes a JSON call and delivers the result to `onRetrievalAgentResult`.
 
 ## useChatStream
 
@@ -59,9 +61,42 @@ sendMessage('how does raft work', {
 })
 ```
 
-`ChatConfig` also takes `agentKnowledge`, `systemPrompt`, `followUpCount`, `limit`, `steps`, `tools`, `fields`, `filterQuery`, `exclusionQuery`. Every `ChatTurn` carries `id`, `userMessage`, `assistantMessage`, `hits`, `followUpQuestions`, `classification`, `confidence`, `clarification`, `appliedFilters`, `reasoningText`, `steps`, `activeSteps`, `toolCallsMade`, `error`, `isStreaming`.
+`url`, `table`, and `generator` are required in `ChatConfig`; it also takes `headers`, `semanticIndexes`, `maxInternalIterations`, `agentKnowledge`, `systemPrompt`, `followUpCount`, `limit`, `steps`, `tools`, `fields`, `filterQuery`, `exclusionQuery`. Every `ChatTurn` carries `id`, `userMessage`, `assistantMessage`, `hits`, `followUpQuestions`, `classification`, `confidence`, `clarification`, `appliedFilters`, `reasoningText`, `steps`, `activeSteps`, `toolCallsMade`, `error`, `isStreaming`.
 
 `<ChatBar>` wraps this hook and injects `url`/`headers`/`table` from the provider.
+
+## useResearchStream
+
+Streams the Research Agent (`/db/v1/agents/research`). Same control shape as `useAnswerStream`.
+
+```typescript
+import { ResearchReport, useResearchStream } from '@antfly/components'
+
+const {
+  status,              // 'idle' | 'streaming' | 'done' | 'error'
+  plan,                // ResearchPlan | null — brief and sub-questions once the planner completes
+  subQuestionProgress, // sub-questions in dispatch order
+  findings,            // ResearchFinding[]
+  reflections,         // ResearchReflection[]
+  sections,            // section headings as the writer produces them
+  reportMarkdown,      // streamed report text
+  verification,        // ResearchVerification | null
+  activeSteps, steps,
+  result,              // ResearchAgentResult | null — authoritative once status is 'done'
+  error,               // Error | null
+  startStream,         // ({ url, request: ResearchAgentRequest, headers? }) => Promise<void>
+  stopStream, reset
+} = useResearchStream()
+
+startStream({
+  url: '{{ANTFLY_API_URL}}',
+  request: { query: 'How do hybrid search and reranking interact?', queries: [{ table: 'docs' }] }
+})
+
+// once done: result && <ResearchReport result={result} />
+```
+
+`ResearchStreamState` is the state type. The function form is `streamResearch(url, request, headers, callbacks: ResearchCallbacks, signal?)` — callbacks `onPlan`, `onSubQuestionStarted`, `onFinding`, `onReflection`, `onSection`, `onVerification`, `onGeneration`, `onStepStarted`, `onStepCompleted`, `onResearchAgentResult`, `onComplete`, `onError`.
 
 ## useSearchHistory
 
@@ -127,7 +162,7 @@ Each throws when used outside its component.
 
 ## Sharp Edges
 
-- `useAnswerStream` and `useChatStream` are independent of the `<Antfly>` provider — you pass `url` and `headers` yourself
+- `useAnswerStream`, `useChatStream`, and `useResearchStream` are independent of the `<Antfly>` provider — you pass `url` and `headers` yourself
 - `useSearchHistory` reads `localStorage` in a lazy initializer and guards `typeof window`, so it is SSR-safe; `isReady` is hardcoded `true` and is not a loading signal
 - `replaceCitations(text, options)` takes an options **object** (`{ renderCitation }`), not a bare function
 - Citations use the `resource_id` format from the API — parse with `parseCitations` / `getCitedResourceIds` rather than hand-rolled regexes; the matcher also swallows any other `[...]` bracket text

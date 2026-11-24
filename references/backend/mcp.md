@@ -11,6 +11,8 @@ Also served:
 | Path | Purpose |
 |------|---------|
 | `/mcp/v1` | Main MCP endpoint |
+| `/memory/v1/mcp/agent` | Agent memory — small agent toolset: `memory_brief`, `memory_recall`, `memory_observe`, `memory_correct`, `memory_forget`, `memory_outcome`, `memory_get`, `memory_explain` |
+| `/memory/v1/mcp` | Agent memory — full operator/curator toolset (every `memory_*` action: proposals, lineage, evaluation, pins, consolidation); discover it with `tools/list` |
 | `/mcp/v1/extensions/{name}` | Single-extension MCP surface |
 | `/mcp/v1/extensions/profiles/copilot` | Alias for the main endpoint, for clients configured against a profile path |
 
@@ -42,10 +44,14 @@ When auth is enabled, every MCP request is authorized and every tool is permissi
 
 Each tool declares a permission tier (`none`, `read`, `write`, `admin`), enforced at two points:
 
-1. **Discovery** — `tools/list` filters by whether the identity holds the tier on **any** table (or on table `"*"` for the wildcard tools). This is coarser than the per-call check: a client can see a tool it cannot call on a given table.
+1. **Discovery** — `tools/list` filters by whether the identity holds the tier on **any** table. This is coarser than the per-call check: a client can see a tool it cannot call on a given table.
 2. **Invocation** — the tier is re-checked fail-closed on every `tools/call`, against the effective permission for the `tableName` argument. Discovery filtering is UX and explicitly *not* an authorization boundary; the per-call check is.
 
-`list_tables` is special: it requires `read` on table `"*"`, since it enumerates everything.
+`list_tables` is special: it has no `tableName`, so it is allowed when the identity holds `read` on
+**any** table, and it returns only the tables that identity can read.
+
+Authorization is per request. An MCP session (`Mcp-Session-Id`) does not carry a previous request's
+permissions forward, so a later request with a narrower credential gets only the narrower access.
 
 ## Setup
 
@@ -99,9 +105,10 @@ Add to `.cursor/mcp.json`:
 
 If running `antfly standalone` locally (`swarm` is the legacy alias for the same runtime), the MCP server is at `http://localhost:8080/mcp/v1`.
 
-## Tools (16)
+## Tools
 
-Grouped by permission tier.
+16 built-in tools on `/mcp/v1`, grouped by permission tier below. Installed extensions add more, so
+discover the live set with `tools/list` rather than hard-coding the count.
 
 ### Tier `none` — always visible
 
@@ -111,7 +118,7 @@ Grouped by permission tier.
 
 ### Tier `read`
 
-**`list_tables`** — list Antfly tables. No arguments. Requires `read` on table `"*"`.
+**`list_tables`** — list Antfly tables. No arguments. Requires `read` on any table; returns only readable tables.
 
 **`describe_table`** — schema, indexes, ranges, and storage status where available
 - `tableName` (required)
@@ -142,7 +149,8 @@ Grouped by permission tier.
 - `writes` — **deprecated** alias for `inserts`; mutually exclusive with it
 - `deletes` — array of doc IDs
 - `transforms` — array of `{ key, operations[], upsert }`, where each operation is `{ op, path, value }` and `op` is one of `$set`, `$setOnInsert`, `$unset`, `$inc`, `$push`, `$addToSet`, `$min`, `$max`. `upsert` is per-key, default `false`
-- `syncLevel` — `propose` | `write` | `full_text` | `enrichments` | `full_index`, default `propose`
+- `syncLevel` — `propose` | `write` | `query` | `full_text` | `enrichments` | `full_index`, default `propose` (`full_text` is an alias of `query`)
+- `commitRequires` — `none` | `direct_enrichments`; see [data.md](data.md#sync-levels)
 
 ### Tier `admin`
 
@@ -188,7 +196,9 @@ Installed extensions register additional MCP tools dynamically — every extensi
 
 ### Raw path (primary)
 
-**`queryRequest`** — a raw Antfly `QueryRequest` body, passed straight through to `POST /db/v1/tables/{tableName}/query`. This is the full query contract: `query`, `full_text_search`, `filter_query`, `exclusion_query`, `semantic_search`, `embedding_template`, `indexes`, `embeddings`, `fields`, `hierarchy`, `limit`, `offset`, `order_by`, `search_after`/`search_before`, `filter_prefix`, `aggregations`, `graph_searches`, `join`, `foreign_sources`, `reranker`, `pruner`, `merge_config`, `count`, `profile`, and more.
+**`queryRequest`** — a raw Antfly `QueryRequest` body, passed straight through to `POST /db/v1/tables/{tableName}/query`. This is the full query contract: `query`, `full_text_search`, `full_text_index`, `filter_query`, `exclusion_query`, `semantic_search`, `embedding_template`, `indexes`, `embeddings`, `search_effort`, `select`, `params`, `fields`, `hierarchy`, `highlight`, `limit`, `offset`, `timeout_ms`, `order_by`, `search_after`/`search_before`, `filter_prefix`, `aggregations`, `graph_queries`, `graph_metric`, `graph_metric_rerank`, `join`, `foreign_sources`, `reranker`, `pruner`, `merge_config`, `count`, `profile`, `read_requirements`, `execution`, and more.
+
+Graph queries go in `graph_queries` (named `match`, `traverse`, `shortest_path`, `k_shortest_paths` operations). `graph_searches` is a deprecated alias; sending both is rejected.
 
 Call `describe_query_request` first to get the compact schema. Do not set `queryRequest.table` — use `tableName`.
 
@@ -201,6 +211,7 @@ Convenience arguments for simple searches:
 | `fullTextSearch` | Bleve-style query string, **or** a full_text_search object |
 | `full_text_search` | Snake-case object form, passed through verbatim; takes precedence over `fullTextSearch` |
 | `fullTextSearchField` | Turns a `fullTextSearch` string into a match on that field |
+| `fullTextIndex` | Named full-text index for `fullTextSearch`; requires `fullTextSearch` (omitted → the active schema index) |
 | `semanticSearch` | Natural-language query for vector similarity |
 | `indexes` | Which embedding indexes to search (required for semantic) |
 | `fields` | Fields to return |
@@ -211,6 +222,9 @@ Convenience arguments for simple searches:
 Setting `queryRequest` alongside **any** shorthand argument is a schema violation.
 
 ## Antfly Cloud
+
+> The gateway claims in this section describe Colony, not the Antfly server, and could not be
+> re-verified against the v0.3 Antfly source. The tool-visibility rules are the server's.
 
 Hosted MCP is served by the Colony cloud gateway:
 
@@ -236,11 +250,11 @@ Tool filtering is server-side: the token carries the key's scope, and the instan
 
 | Key scope | Tools exposed |
 |-----------|---------------|
-| read-only | `query`, `get_document`, `describe_table`, `list_indexes`, `describe_indexes`, `sample_documents`, `describe_query_request`, `describe_mcp_capabilities`, plus `list_tables` unless the key is scoped to a table list |
+| read-only | `query`, `get_document`, `describe_table`, `list_indexes`, `describe_indexes`, `sample_documents`, `list_tables`, `describe_query_request`, `describe_mcp_capabilities` |
 | read-write | the above plus `batch` |
 | admin | all 16 built-in tools (plus any extension tools) |
 
-An unscoped key carries no table list, so the instance grants it its operations on table `"*"` and `list_tables` is available; admin keys get `"*"` too. Only a key scoped to specific table names loses `list_tables`, since that tool requires `read` on `"*"`.
+A key scoped to specific tables still sees `list_tables`; the instance returns only the tables that key can read.
 
 ## Typical Agent Workflow
 

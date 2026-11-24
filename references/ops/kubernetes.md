@@ -1,5 +1,9 @@
 # Kubernetes — Operator, CRDs, Cloud Platforms
 
+> **Unverified — operator moved to Colony.** In the Antfly 0.3 line the Kubernetes operator, its CRDs, and the managed proxy left the Antfly repository for Colony (Antfly commit `871c143788`, "move hosted operations to Colony"). This file describes the operator as of Antfly `ab8d9fc119` and has **not** been verified against current Colony; field names, defaults, webhook rules, and images may have changed. Treat it as historical guidance and confirm against Colony before acting.
+>
+> Still verifiable from Antfly itself: the runtime side these manifests drive — `antfly standalone|metadata|data` flags, the `--hot-standby-*` flags (`--ha-*` kept as aliases for one minor release because the operator still generated them), `/admin/v1/standby` (alias `/admin/v1/ha`), the nested `inference` / `resources` config that InferencePools must emit, and the `secrets.md` internal-service-auth keys. For single-server availability without an operator, see Hot Standby in `standalone.md`.
+
 ## Operator Overview
 
 | CRD | Group/Version | Purpose |

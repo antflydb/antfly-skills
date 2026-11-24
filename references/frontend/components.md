@@ -3,8 +3,10 @@
 ## Installation
 
 ```
-npm install @antfly/components @antfly/sdk react react-dom
+npm install @antfly/components@^0.3.0 @antfly/sdk@^0.3.0 react react-dom
 ```
+
+`@antfly/components` 0.3.0 peer-requires `@antfly/sdk` `^0.3.0` — an older SDK does not satisfy it.
 
 Import stylesheet (required): `import '@antfly/components/styles'`
 
@@ -14,14 +16,14 @@ Entry points: `@antfly/components` (everything) and `@antfly/components/adapters
 
 ### `<Antfly>` — Root Provider
 
-**Required.** All other components must be descendants — except `<Pagination>`, which reads no context and works standalone.
+**Required.** All other components must be descendants — except `<Pagination>` and `<ResearchReport>`, which read no context and work standalone.
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `url` | string | yes | Antfly base URL. A trailing `/db/v1`, `/auth/v1`, or `/ai/v1` is stripped, so either form works |
 | `table` | string | yes | Default table for all child components |
 | `headers` | object | no | Custom headers (auth, etc.) |
-| `onChange` | `(params: Map<string, unknown>) => void` | no | Fires on **every** provider render, not just on real changes — the `Listener` effect that calls it has no dependency array, and `AnswerResults` re-dispatches on each streaming chunk. The map carries each widget's value plus a `<id>Page` entry for every widget past page 1. Debounce anything expensive |
+| `onChange` | `(params: Map<string, unknown>) => void` | no | Fires on mount and then only when the serialized widget values or pages change — not on every render. The map carries each widget's value plus a `<id>Page` entry for every widget past page 1 |
 | `children` | ReactNode | yes | |
 
 ### `<QueryBox>` — Search Input
@@ -104,7 +106,7 @@ Entry points: `@antfly/components` (everything) and `@antfly/components/adapters
 | `itemsPerBlock` | number | no | Items per block (default 5, also the "see more" increment) |
 | `placeholder` | string | no | Filter input placeholder (default `"filter…"`) |
 | `showFilter` | boolean | no | Show the filter input (default true) |
-| `filterValueModifier` | `(value: string) => string` | no | Accepted but never read — a no-op. Facet filtering is client-side, case-insensitive substring matching of the raw typed value against the returned bucket keys |
+| `filterValueModifier` | `(value: string) => string` | no | Transforms the typed filter value into a pattern: a bucket matches when `new RegExp(modifier(value), "i")` tests its key; an invalid pattern matches nothing. Without it, filtering is case-insensitive substring matching. Filtering is client-side, inside `Facet` (`facetFilterMatches`) |
 | `seeMore` | string | no | "See more" button text |
 | `table` | string | no | Table override |
 | `items` | `(data, { handleChange, isChecked }) => ReactNode` | no | Custom render |
@@ -158,7 +160,7 @@ Single-shot streaming answer with reasoning, follow-ups, confidence, citations, 
 |------|------|----------|-------------|
 | `id` | string | yes | Unique ID |
 | `searchBoxId` | string | yes | ID of the driving QueryBox |
-| `generator` | `GeneratorConfig` | no | `{ provider, model, ... }`; server default when omitted |
+| `generator` | `GeneratorConfig` | yes | `{ provider, model, ... }` — required since 0.3.0 |
 | `table` | string | no | Overrides the QueryBox/provider table |
 | `fields` | string[] | no | Fields to return |
 | `semanticIndexes` | string[] | no | Vector indexes |
@@ -169,10 +171,10 @@ Single-shot streaming answer with reasoning, follow-ups, confidence, citations, 
 | `limit` | number | no | Retrieval limit (default 10) |
 | `followUpCount` | number | no | → `steps.followup.count` |
 | `eval` | `EvalConfig` | no | Inline answer evaluation |
-| `showFollowUpQuestions` | boolean | no | Default **true** — also sets `steps.followup.enabled`, so turning it off stops the server producing them: `onFollowup` never fires and `renderFollowUpQuestions` is dead |
-| `showReasoning` | boolean | no | Default false (also enables classification reasoning server-side) |
-| `showClassification` | boolean | no | Default false |
-| `showConfidence` | boolean | no | Default false — also sets `steps.confidence.enabled`, so leaving it off means `onConfidence` never fires and `renderConfidence` is dead |
+| `showFollowUpQuestions` | boolean | no | Default **true**. `steps.followup` is only sent when on, so turning it off stops the server producing them: `onFollowup` never fires and `renderFollowUpQuestions` is dead |
+| `showReasoning` | boolean | no | Default false. Sends `steps.classification` with `with_reasoning: true` |
+| `showClassification` | boolean | no | Default false. `steps.classification` is only sent when this or `showReasoning` is on |
+| `showConfidence` | boolean | no | Default false. `steps.confidence` is only sent when on, so leaving it off means `onConfidence` never fires and `renderConfidence` is dead |
 | `showHits` | boolean | no | Default false |
 | `renderLoading` | `() => ReactNode` | no | |
 | `renderEmpty` | `() => ReactNode` | no | |
@@ -183,6 +185,8 @@ Single-shot streaming answer with reasoning, follow-ups, confidence, citations, 
 | `renderConfidence` | `(confidence) => ReactNode` | no | |
 | `renderHits` | `(hits: QueryHit[]) => ReactNode` | no | |
 | `renderEvalResult` | `(evalResult) => ReactNode` | no | |
+| `onController` | `(controller: AbortController) => void` | no | Receives each request's controller before the request starts (including the header wait) — call `abort()` to cancel |
+| `onRequestContextChange` | `() => void` | no | Fires when request settings change (url, headers, table, generator, fields, indexes, filters, prompts, limits, `show*` flags …). The in-flight stream is aborted and all answer state is cleared. Incidental re-renders and explicit aborts do not trigger it |
 | `onStreamStart` / `onStreamEnd` | `() => void` | no | |
 | `onError` | `(error: string) => void` | no | Receives a string, not an `Error` |
 | `onClassification` | `(data) => void` | no | |
@@ -218,7 +222,7 @@ Self-contained conversation UI: renders `<ChatMessages>` and `<ChatInput>` inter
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `id` | string | yes | Unique ID |
-| `generator` | `GeneratorConfig` | no | |
+| `generator` | `GeneratorConfig` | yes | Required since 0.3.0 |
 | `table` | string | no | Table override |
 | `semanticIndexes` | string[] | no | |
 | `fields` | string[] | no | |
@@ -227,8 +231,8 @@ Self-contained conversation UI: renders `<ChatMessages>` and `<ChatInput>` inter
 | `limit` | number | no | Results per search |
 | `maxInternalIterations` | number | no | `1+` = agentic tool-calling. For pipeline mode omit it or pass `0` — `0` is falsy, so the field is dropped from the request and the API's own default of `0` applies |
 | `followUpCount` | number | no | |
-| `steps` | `RetrievalAgentSteps` | no | **Replaces** the whole default steps object instead of merging into it — supplying it silently drops the defaults built from `systemPrompt`, `followUpCount`, and `tools` |
-| `tools` | `ChatToolsConfig` | no | Agentic-mode tool config. It only reaches the request through that default steps object, so it is ignored once `steps` is supplied — put it inside `steps` instead |
+| `steps` | `RetrievalAgentSteps` | no | **Replaces** the default steps (`generation`, `classification`, `followup`, `confidence`) instead of merging into them, so `followUpCount` is dropped. `systemPrompt` is still merged into `steps.generation` — but only if your `steps` includes a `generation` entry |
+| `tools` | `ChatToolsConfig` | no | Agentic-mode tool config, sent as the request's top-level `tools` whether or not `steps` is supplied |
 | `onStreamStart` / `onStreamEnd` | `() => void` | no | |
 | `onError` | `(error: string) => void` | no | |
 | `children` | ReactNode | no | Rendered after the input |
@@ -238,6 +242,21 @@ Self-contained conversation UI: renders `<ChatMessages>` and `<ChatInput>` inter
 `ChatInputProps`: `placeholder`, `renderInput({ value, onChange, onSubmit, isStreaming, placeholder, abort })`.
 
 `<ChatMessages>` and `<ChatInput>` are also exported individually for custom layouts, but they require a `ChatContext` — i.e. they must live inside a `<ChatBar>`.
+
+### `<ResearchReport>` — Research Agent Report
+
+Renders a Research Agent report: title, executive summary, sections, and a numbered sources list, with `[E#]` citation markers resolved against the evidence registry. Takes a final `ResearchAgentResult` or any `{ report?, evidence? }` (`ResearchReportResult`) — e.g. one assembled from `useResearchStream`. Reads no context.
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `result` | `ResearchReportResult` | yes | `{ report?: ResearchReport, evidence?: ResearchEvidence[] }` |
+| `renderCitation` | `(evidence: ResearchEvidence \| undefined, marker: string) => ReactNode` | no | Default: superscript link to `#evidence-<id>`; `evidence` is `undefined` for an unresolved marker |
+| `showSummary` | boolean | no | Default true |
+| `showSources` | boolean | no | Default true |
+| `renderEmpty` | `() => ReactNode` | no | Shown while the report has neither sections nor markdown |
+| `className` | string | no | |
+
+Section markdown is split into paragraphs on blank lines and rendered as plain text, not parsed as markdown. `evidenceLabel(evidence)` gives the label it uses: `title`, else `url`, else `table/doc_id`, else `table`, else `id`.
 
 ### `<CustomWidget>` — Context Escape Hatch
 
@@ -255,30 +274,19 @@ Rendered by `<Antfly>` automatically; it batches every widget's query into one m
 
 ## Generator Providers
 
-`generator={{ provider, model }}` on `AnswerResults` / `ChatBar`. The SDK's `generatorProviders` array lists: `antfly`, `ollama`, `gemini`, `openai`, `anthropic`, `vertex`, `cohere`, `openrouter`. The API's `GeneratorProvider` enum additionally accepts `bedrock` and `mock`. Both lists are schema-only: the request goes to `/db/v1/agents/retrieval`, which accepts just `gemini`, `vertex`, `openai`, `ollama`, and `antfly` — any other value is a 400 `invalid retrieval agent request`.
-
-| Provider | Value | Example models |
-|----------|-------|---------------|
-| Antfly hosted | `"antfly"` | server-configured |
-| Ollama | `"ollama"` | gemma3:4b, qwen2.5:7b |
-| OpenAI | `"openai"` | gpt-4o, gpt-4o-mini |
-| Anthropic | `"anthropic"` | claude-sonnet-4-20250514 |
-| Google Gemini | `"gemini"` | gemini-2.0-flash |
-| Google Vertex | `"vertex"` | gemini-2.0-flash |
-| Cohere | `"cohere"` | command-r-plus |
-| OpenRouter | `"openrouter"` | any routed model |
-| AWS Bedrock | `"bedrock"` | anthropic.claude-v2 (API enum only) |
+`generator={{ provider, model }}` is required on `AnswerResults` / `ChatBar`. `GeneratorProvider` (SDK 0.3.0, matching the SDK's `generatorProviders` array) is one of `cloudflare`, `anthropic`, `antfly`, `bedrock`, `apple`, `gemini`, `ollama`, `openai`, `chatgpt`, `openrouter`, `vertex`. `cohere` and `mock` are no longer accepted by the type. The request goes to `/db/v1/agents/retrieval`; which providers the server runs (and which can drive the agentic tool loop) is covered in `../backend/rag.md`.
 
 ## Sharp Edges
 
 1. **Must import CSS**: `import '@antfly/components/styles'` — components render unstyled without it
 2. **`searchBoxId` must match** the driving QueryBox `id`. A mismatch throws nothing. In full-text mode `Results` sees an empty search value and matches everything; in semantic mode an empty or mismatched value leaves the widget contributing neither a full-text nor a semantic query, so the `Listener`'s readiness check never passes and the entire batched request is skipped — sibling `Facet`s get no data either. `AnswerResults` never fires
 3. **`semanticIndexes` required** for vector search — same rule as the API
-4. **`AnswerResults` needs a submission.** In `mode="live"` typing never sets `submittedAt`, so nothing fires; the one exception is picking an Autosuggest entry with the default select handler, which does submit in live mode. Use `mode="submit"` for Q&A
-5. **`Results` hides pagination when semantic search is on** — which needs **both** `semanticIndexes` and `searchBoxId`. With `semanticIndexes` but no `searchBoxId` the widget stays in full-text mode: the pager renders and the query carries no `semantic_search`. When semantic mode is on, only the pager UI is suppressed — the query is still one `itemsPerPage`-sized page (`limit: itemsPerPage`, `offset: (page - 1) * itemsPerPage`), exactly as in full-text mode; `Results.limit` never sizes it
-6. **`Results.sort` is passed straight through** to `order_by`; give it the API shape `[{ field: "price", desc: true }]`, not a bare string
-7. **Facet fields must be `keyword` type** — `text` fields produce broken facet values
-8. **`ActiveFilters` uses `items`**, not `render`, for custom rendering
-9. **`renderInput` on QueryBox disables the form wrapper**, the clear button, and the submit button — your component owns submission. Either call the supplied `onSubmit`, or forward the supplied `onKeyDown`, which already submits on Enter in submit mode
-10. **`AnswerFeedback` renders an empty container without `renderRating`** — there is no default rating UI, and with the rating stuck at `null` the submit button never appears either. The comment box only appears when `renderComment` is given
-11. **Peer dependencies**: `@antfly/sdk`, `react`, `react-dom` must be installed separately
+4. **`generator` is required** on `AnswerResults` and `ChatBar` (and `ChatConfig` for `useChatStream`) — omitting it is a type error since 0.3.0
+5. **`AnswerResults` needs a submission.** In `mode="live"` typing never sets `submittedAt`, so nothing fires; the one exception is picking an Autosuggest entry with the default select handler, which does submit in live mode. Use `mode="submit"` for Q&A
+6. **`Results` hides pagination when semantic search is on** — which needs **both** `semanticIndexes` and `searchBoxId`. With `semanticIndexes` but no `searchBoxId` the widget stays in full-text mode: the pager renders and the query carries no `semantic_search`. When semantic mode is on, only the pager UI is suppressed — the query is still one `itemsPerPage`-sized page (`limit: itemsPerPage`, `offset: (page - 1) * itemsPerPage`), exactly as in full-text mode; `Results.limit` never sizes it
+7. **`Results.sort` is passed straight through** to `order_by`; give it the API shape `[{ field: "price", desc: true }]`, not a bare string
+8. **Facet fields must be `keyword` type** — `text` fields produce broken facet values
+9. **`ActiveFilters` uses `items`**, not `render`, for custom rendering
+10. **`renderInput` on QueryBox disables the form wrapper**, the clear button, and the submit button — your component owns submission. Either call the supplied `onSubmit`, or forward the supplied `onKeyDown`, which already submits on Enter in submit mode
+11. **`AnswerFeedback` renders an empty container without `renderRating`** — there is no default rating UI, and with the rating stuck at `null` the submit button never appears either. The comment box only appears when `renderComment` is given
+12. **Peer dependencies**: `@antfly/sdk` `^0.3.0`, `react` (16–19), and `react-dom` must be installed separately

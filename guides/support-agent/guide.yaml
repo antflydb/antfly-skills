@@ -25,7 +25,7 @@ starters:
   - antflydb/knowledge-support
   - antflydb/nextjs-support-agent
 security:
-  credential_scope: instance-scoped-read-only
+  credential_scope: read-only (Cloud instance key or self-hosted table-scoped user key)
   tool_policy: skills/use-cases/build-antfly-support-agent/references/read-only-policy.json
 evaluations:
   - skills/use-cases/build-antfly-support-agent/assets/support-agent-evals.json
@@ -36,7 +36,7 @@ verification:
   - Portable support-agent evaluations pass before publication.
   - Public answers never expose private storage paths or credentials.
 compatibility:
-  antfly: main until the next stable release includes the current MCP contract
+  antfly: v0.3.x (verified against the v0.3 line at main 80625bd71c; latest tag v0.3.2)
   mcp: streamable HTTP
 provenance:
   repository: antflydb/support-agent-templates

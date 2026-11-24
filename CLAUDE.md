@@ -8,7 +8,8 @@ is the CI-verified fact core.
 
 Antfly has built-in MCP and A2A servers:
 - **MCP** at `{{ANTFLY_API_URL}}/mcp/v1` — 16 tools for schema discovery, sampling, queries, batch writes, and administration; permission-filtered by the key's scope. See `references/backend/mcp.md`.
-- **A2A** at `{{ANTFLY_API_URL}}/a2a` — experimental (`--experimental`; admin permission when auth is enabled); RAG with streaming, query building. The stable RAG surface is `POST /db/v1/agents/retrieval`. See `references/backend/a2a.md`.
+- **Memory MCP** at `/memory/v1/mcp/agent` (agent profile) and `/memory/v1/mcp` — separate servers. Installed extensions can add tools to `/mcp/v1`; discover the live list.
+- **A2A** at `{{ANTFLY_API_URL}}/a2a` — experimental (`--experimental`; admin permission when auth is enabled); skills `retrieval`, `query-builder`, and `research`. The stable RAG surface is `POST /db/v1/agents/retrieval`. See `references/backend/a2a.md`.
 
 ## Reference Material
 - Start with the focused Skill that covers the task (see `SKILL.md`); fall back to `references/{backend,frontend,ops}/index.md`
